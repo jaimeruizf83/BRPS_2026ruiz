@@ -1,0 +1,6 @@
+import assert from "node:assert/strict";import test from "node:test";import {INSTRUMENTS,instrumentForRole} from "../lib/instruments.ts";import {aggregateByForm,classifyRisk,scoreSubmission} from "../lib/scoring.ts";
+test("asigna Forma A o B por cargo",()=>{assert.equal(instrumentForRole("leadership").form,"A");assert.equal(instrumentForRole("assistant").form,"B")});
+test("calcula resultado determinista",()=>{const i=INSTRUMENTS.B;const a=Object.fromEntries(i.questions.map(q=>[q.id,2]));const r=scoreSubmission(i,a);assert.equal(r.total.score,50);assert.equal(r.total.risk.key,"medium")});
+test("rechaza respuestas inválidas",()=>assert.throws(()=>scoreSubmission(INSTRUMENTS.A,{}),/inválida o ausente/));
+test("respeta límites demo",()=>{assert.equal(classifyRisk(20).key,"none");assert.equal(classifyRisk(40).key,"low");assert.equal(classifyRisk(60).key,"medium");assert.equal(classifyRisk(80).key,"high");assert.equal(classifyRisk(100).key,"very_high")});
+test("suprime grupos pequeños",()=>{const i=INSTRUMENTS.B;const r=scoreSubmission(i,Object.fromEntries(i.questions.map(q=>[q.id,1])));assert.equal(aggregateByForm([r,r],5)[0].suppressed,true);assert.equal(aggregateByForm([r,r,r,r,r],5)[0].suppressed,false)});
