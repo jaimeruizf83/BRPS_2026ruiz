@@ -1,143 +1,105 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, Metric, PageHeader, StatusPill } from "@/components/Ui";
-import { requireAuthorizedUser } from "@/lib/auth";
 import { all, one } from "@/db";
+import { requireAuthorizedUser } from "@/lib/auth";
 import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 type Stats = {
   organizations: number;
-  campaigns: number;
-  active_campaigns: number;
-  participants: number;
+  applications: number;
+  active_applications: number;
+  evaluations: number;
   completed: number;
 };
 
-type Campaign = {
+type Application = {
   id: string;
   name: string;
   organization_name: string;
   status: string;
-  starts_on: string | null;
+  cutoff_date: string | null;
   participant_count: number;
-  completed_count: number;
+  manual_count: number;
+  participant_completed: number;
+  manual_completed: number;
 };
 
 export default async function Dashboard() {
   const user = await requireAuthorizedUser("/dashboard");
   const scoped = user.role === "company_admin" || user.role === "viewer";
   const organizationId = scoped ? user.organizationId : null;
+  const organizationFilter = organizationId ? "WHERE campaigns.organization_id=?" : "";
 
-  const stats = organizationId
-    ? await one<Stats>(
-        `SELECT
-          1 AS organizations,
-          COUNT(DISTINCT campaigns.id) AS campaigns,
-          COUNT(DISTINCT CASE WHEN campaigns.status = 'active' THEN campaigns.id END) AS active_campaigns,
-          COUNT(DISTINCT participants.id) AS participants,
-          COUNT(DISTINCT CASE WHEN participants.status = 'completed' THEN participants.id END) AS completed
-         FROM campaigns
-         LEFT JOIN participants ON participants.campaign_id = campaigns.id
-         WHERE campaigns.organization_id = ?`,
-        organizationId,
-      )
-    : await one<Stats>(
-        `SELECT
-          (SELECT COUNT(*) FROM organizations) AS organizations,
-          COUNT(DISTINCT campaigns.id) AS campaigns,
-          COUNT(DISTINCT CASE WHEN campaigns.status = 'active' THEN campaigns.id END) AS active_campaigns,
-          COUNT(DISTINCT participants.id) AS participants,
-          COUNT(DISTINCT CASE WHEN participants.status = 'completed' THEN participants.id END) AS completed
-         FROM campaigns
-         LEFT JOIN participants ON participants.campaign_id = campaigns.id`,
-      );
+  const stats = await one<Stats>(
+    `SELECT
+      ${organizationId ? "1" : "(SELECT COUNT(*) FROM organizations)"} AS organizations,
+      (SELECT COUNT(*) FROM campaigns ${organizationFilter}) AS applications,
+      (SELECT COUNT(*) FROM campaigns ${organizationFilter}${organizationFilter ? " AND" : " WHERE"} campaigns.status='active') AS active_applications,
+      ((SELECT COUNT(*) FROM participants JOIN campaigns ON campaigns.id=participants.campaign_id ${organizationFilter}) +
+       (SELECT COUNT(*) FROM manual_evaluations JOIN campaigns ON campaigns.id=manual_evaluations.campaign_id ${organizationFilter})) AS evaluations,
+      ((SELECT COUNT(*) FROM participants JOIN campaigns ON campaigns.id=participants.campaign_id ${organizationFilter}${organizationFilter ? " AND" : " WHERE"} participants.status='completed') +
+       (SELECT COUNT(*) FROM manual_evaluations JOIN campaigns ON campaigns.id=manual_evaluations.campaign_id ${organizationFilter}${organizationFilter ? " AND" : " WHERE"} manual_evaluations.status='completed')) AS completed`,
+    ...(organizationId ? Array(6).fill(organizationId) : []),
+  );
 
-  const campaigns = organizationId
-    ? await all<Campaign>(
-        `SELECT campaigns.id, campaigns.name, campaigns.status, campaigns.starts_on,
-          organizations.name AS organization_name,
-          COUNT(participants.id) AS participant_count,
-          SUM(CASE WHEN participants.status = 'completed' THEN 1 ELSE 0 END) AS completed_count
-         FROM campaigns
-         JOIN organizations ON organizations.id = campaigns.organization_id
-         LEFT JOIN participants ON participants.campaign_id = campaigns.id
-         WHERE campaigns.organization_id = ?
-         GROUP BY campaigns.id
-         ORDER BY campaigns.created_at DESC LIMIT 8`,
-        organizationId,
-      )
-    : await all<Campaign>(
-        `SELECT campaigns.id, campaigns.name, campaigns.status, campaigns.starts_on,
-          organizations.name AS organization_name,
-          COUNT(participants.id) AS participant_count,
-          SUM(CASE WHEN participants.status = 'completed' THEN 1 ELSE 0 END) AS completed_count
-         FROM campaigns
-         JOIN organizations ON organizations.id = campaigns.organization_id
-         LEFT JOIN participants ON participants.campaign_id = campaigns.id
-         GROUP BY campaigns.id
-         ORDER BY campaigns.created_at DESC LIMIT 8`,
-      );
+  const applications = await all<Application>(
+    `SELECT campaigns.id,campaigns.name,campaigns.status,organizations.name AS organization_name,
+      application_profiles.cutoff_date,
+      (SELECT COUNT(*) FROM participants WHERE participants.campaign_id=campaigns.id) AS participant_count,
+      (SELECT COUNT(*) FROM manual_evaluations WHERE manual_evaluations.campaign_id=campaigns.id) AS manual_count,
+      (SELECT COUNT(*) FROM participants WHERE participants.campaign_id=campaigns.id AND participants.status='completed') AS participant_completed,
+      (SELECT COUNT(*) FROM manual_evaluations WHERE manual_evaluations.campaign_id=campaigns.id AND manual_evaluations.status='completed') AS manual_completed
+     FROM campaigns JOIN organizations ON organizations.id=campaigns.organization_id
+     LEFT JOIN application_profiles ON application_profiles.campaign_id=campaigns.id
+     ${organizationFilter} ORDER BY campaigns.created_at DESC LIMIT 8`,
+    ...(organizationId ? [organizationId] : []),
+  );
 
-  const safeStats = stats ?? {
-    organizations: 0,
-    campaigns: 0,
-    active_campaigns: 0,
-    participants: 0,
-    completed: 0,
-  };
-  const completion = safeStats.participants
-    ? Math.round((safeStats.completed / safeStats.participants) * 100)
-    : 0;
+  const safeStats = stats ?? { organizations: 0, applications: 0, active_applications: 0, evaluations: 0, completed: 0 };
+  const completion = safeStats.evaluations ? Math.round((safeStats.completed / safeStats.evaluations) * 100) : 0;
 
   return (
     <AppShell user={user}>
       <PageHeader
         eyebrow="Centro de control"
         title={`Hola, ${user.displayName.split(" ")[0]}`}
-        description="Supervisa el avance, protege la confidencialidad y mantén cada campaña bajo control."
-        action={<Link className="button button-primary" href="/campanas#nueva">+ Nueva campaña</Link>}
+        description="Supervisa cada aplicación de la batería, su captura V3 y los controles de confidencialidad."
+        action={<Link className="button button-primary" href="/aplicaciones#nueva">+ Nueva aplicación</Link>}
       />
 
       <section className="metrics-grid" aria-label="Indicadores generales">
         <Metric label="Organizaciones" value={safeStats.organizations} detail="registradas" />
-        <Metric label="Campañas" value={safeStats.campaigns} detail="en total" tone="teal" />
-        <Metric label="Campañas activas" value={safeStats.active_campaigns} detail="en aplicación" tone="aqua" />
-        <Metric label="Participantes" value={safeStats.participants} detail="invitados" tone="gold" />
+        <Metric label="Aplicaciones" value={safeStats.applications} detail="en total" tone="teal" />
+        <Metric label="Aplicaciones activas" value={safeStats.active_applications} detail="en curso" tone="aqua" />
+        <Metric label="Evaluaciones" value={safeStats.evaluations} detail="manuales y digitales" tone="gold" />
         <Metric label="Completitud" value={`${completion}%`} detail={`${safeStats.completed} finalizadas`} tone="teal" />
       </section>
 
       <div className="content-grid">
         <section className="card">
-          <div className="card-header">
-            <div><h2>Campañas recientes</h2><p>Avance y estado operativo</p></div>
-            <Link className="table-link" href="/campanas">Ver todas →</Link>
-          </div>
-          {campaigns.length ? (
-            <div className="table-wrap">
-              <table>
-                <thead><tr><th>Campaña</th><th>Inicio</th><th>Avance</th><th>Estado</th><th /></tr></thead>
-                <tbody>
-                  {campaigns.map((campaign) => {
-                    const progress = campaign.participant_count
-                      ? Math.round((Number(campaign.completed_count || 0) / Number(campaign.participant_count)) * 100)
-                      : 0;
-                    return (
-                      <tr key={campaign.id}>
-                        <td><span className="cell-stack"><strong>{campaign.name}</strong><small>{campaign.organization_name}</small></span></td>
-                        <td>{formatDate(campaign.starts_on)}</td>
-                        <td><span className="cell-stack numeric"><strong>{progress}%</strong><span className="progress-track"><span style={{ width: `${progress}%` }} /></span><small>{campaign.completed_count || 0} de {campaign.participant_count}</small></span></td>
-                        <td><StatusPill value={campaign.status} /></td>
-                        <td><Link className="table-link" href={`/campanas/${campaign.id}`}>Abrir</Link></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="card-header"><div><h2>Aplicaciones recientes</h2><p>Avance y estado operativo</p></div><Link className="table-link" href="/aplicaciones">Ver todas →</Link></div>
+          {applications.length ? (
+            <div className="table-wrap"><table><thead><tr><th>Aplicación</th><th>Fecha de corte</th><th>Avance</th><th>Estado</th><th /></tr></thead><tbody>
+              {applications.map((application) => {
+                const total = Number(application.participant_count || 0) + Number(application.manual_count || 0);
+                const completed = Number(application.participant_completed || 0) + Number(application.manual_completed || 0);
+                const progress = total ? Math.round((completed / total) * 100) : 0;
+                return (
+                  <tr key={application.id}>
+                    <td><span className="cell-stack"><strong>{application.name}</strong><small>{application.organization_name}</small></span></td>
+                    <td>{formatDate(application.cutoff_date)}</td>
+                    <td><span className="cell-stack numeric"><strong>{progress}%</strong><span className="progress-track"><span style={{ width: `${progress}%` }} /></span><small>{completed} de {total}</small></span></td>
+                    <td><StatusPill value={application.status} /></td>
+                    <td><Link className="table-link" href={`/aplicaciones/${application.id}`}>Abrir</Link></td>
+                  </tr>
+                );
+              })}
+            </tbody></table></div>
           ) : (
-            <EmptyState title="Aún no hay campañas" text="Crea una organización y tu primera campaña para comenzar." href="/campanas#nueva" action="Crear campaña" />
+            <EmptyState title="Aún no hay aplicaciones" text="Registra una organización y configura la primera aplicación V3." href="/aplicaciones#nueva" action="Crear aplicación" />
           )}
         </section>
 
@@ -146,18 +108,14 @@ export default async function Dashboard() {
             <div className="card-header"><h2>Acciones rápidas</h2></div>
             <div className="card-body quick-list">
               <Link className="quick-link" href="/organizaciones#nueva"><span>+</span><div><strong>Nueva organización</strong><small>Registrar empresa y datos básicos</small></div></Link>
-              <Link className="quick-link" href="/campanas#nueva"><span>◎</span><div><strong>Crear campaña</strong><small>Definir periodo y alcance</small></div></Link>
+              <Link className="quick-link" href="/aplicaciones#nueva"><span>◎</span><div><strong>Crear aplicación</strong><small>Configurar referencia V3</small></div></Link>
+              <Link className="quick-link" href="/aplicaciones"><span>✎</span><div><strong>Registro manual V3</strong><small>Elegir aplicación y capturar formatos</small></div></Link>
               <Link className="quick-link" href="/lotes#nuevo"><span>▦</span><div><strong>Calificar por lotes</strong><small>Cargar PDF y revisar tabulación</small></div></Link>
-              <Link className="quick-link" href="/equipo#nuevo"><span>♙</span><div><strong>Agregar responsable</strong><small>Asignar un rol de acceso</small></div></Link>
             </div>
           </section>
           <section className="card">
             <div className="card-header"><h2>Control de privacidad</h2></div>
-            <div className="card-body">
-              <div className="notice notice-info" style={{ margin: 0 }}>
-                Los reportes colectivos se ocultan automáticamente cuando una Forma no alcanza el mínimo configurado de participantes.
-              </div>
-            </div>
+            <div className="card-body"><div className="notice notice-info" style={{ margin: 0 }}>Los reportes colectivos se ocultan automáticamente cuando una Forma no alcanza el mínimo configurado de participantes.</div></div>
           </section>
         </aside>
       </div>

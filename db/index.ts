@@ -69,6 +69,15 @@ const schemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE INDEX IF NOT EXISTS campaigns_org_idx ON campaigns(organization_id)`,
+  `CREATE TABLE IF NOT EXISTS application_profiles (
+    campaign_id TEXT PRIMARY KEY REFERENCES campaigns(id) ON DELETE CASCADE,
+    internal_code TEXT NOT NULL,
+    cutoff_date TEXT NOT NULL,
+    technical_responsible TEXT NOT NULL,
+    battery_version TEXT NOT NULL DEFAULT 'V3',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
   `CREATE TABLE IF NOT EXISTS participants (
     id TEXT PRIMARY KEY,
     campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -95,6 +104,28 @@ const schemaStatements = [
     completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE INDEX IF NOT EXISTS submissions_completed_idx ON submissions(completed_at)`,
+  `CREATE TABLE IF NOT EXISTS manual_evaluations (
+    id TEXT PRIMARY KEY,
+    campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    participant_code TEXT NOT NULL,
+    role_level TEXT NOT NULL CHECK(role_level IN ('leadership','professional_technical','assistant','operator')),
+    instrument_form TEXT NOT NULL CHECK(instrument_form IN ('A','B')),
+    evaluator_email TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','completed')),
+    sociodemographic_json TEXT NOT NULL DEFAULT '{}',
+    intralaboral_answers_json TEXT NOT NULL DEFAULT '{}',
+    extralaboral_answers_json TEXT NOT NULL DEFAULT '{}',
+    stress_answers_json TEXT NOT NULL DEFAULT '{}',
+    serves_customers INTEGER,
+    supervises_people INTEGER NOT NULL DEFAULT 0,
+    consent_verified INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TEXT
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS manual_evaluations_application_code_uq ON manual_evaluations(campaign_id,participant_code)`,
+  `CREATE INDEX IF NOT EXISTS manual_evaluations_application_idx ON manual_evaluations(campaign_id)`,
+  `CREATE INDEX IF NOT EXISTS manual_evaluations_updated_idx ON manual_evaluations(updated_at)`,
   `CREATE TABLE IF NOT EXISTS scoring_batches (
     id TEXT PRIMARY KEY,
     campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,

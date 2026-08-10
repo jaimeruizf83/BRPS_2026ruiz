@@ -7,7 +7,7 @@ import { Brand } from "./Brand";
 const nav = [
   { href: "/dashboard", label: "Resumen", icon: "⌂" },
   { href: "/organizaciones", label: "Organizaciones", icon: "◇" },
-  { href: "/campanas", label: "Campañas", icon: "◎" },
+  { href: "/aplicaciones", label: "Aplicaciones", icon: "◎" },
   { href: "/lotes", label: "Lotes", icon: "▦" },
   { href: "/equipo", label: "Equipo", icon: "♙" },
 ];

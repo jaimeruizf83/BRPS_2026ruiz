@@ -122,9 +122,9 @@ export default async function BatchesPage({
                   <input id="batch-name" name="name" required maxLength={100} placeholder="Aplicación agosto · sede norte" />
                 </div>
                 <div className="field field-full">
-                  <label htmlFor="batch-campaign">Campaña *</label>
-                  <select id="batch-campaign" name="campaignId" required defaultValue="">
-                    <option value="" disabled>Selecciona una campaña</option>
+                  <label htmlFor="batch-application">Aplicación *</label>
+                  <select id="batch-application" name="applicationId" required defaultValue="">
+                    <option value="" disabled>Selecciona una aplicación</option>
                     {campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.organization_name} · {campaign.name}</option>)}
                   </select>
                 </div>

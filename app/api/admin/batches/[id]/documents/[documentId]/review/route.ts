@@ -227,10 +227,10 @@ export async function POST(
       participantCode,
     );
     if (existing?.submission_id) {
-      throw new Error("Ese código ya tiene una evaluación calificada en la campaña");
+      throw new Error("Ese código ya tiene una evaluación calificada en la aplicación");
     }
     if (existing && existing.instrument_form !== instrumentForm) {
-      throw new Error("Ese código ya está asociado con otra Forma en la campaña");
+      throw new Error("Ese código ya está asociado con otra Forma en la aplicación");
     }
 
     const participantId = existing?.id || crypto.randomUUID();

@@ -16,11 +16,11 @@ export const ROLE_LEVELS: Array<{
   { value: "leadership", label: "Jefatura — tiene personal a cargo", form: "A" },
   {
     value: "professional_technical",
-    label: "Profesional o técnico con autonomía",
+    label: "Profesional, analista, técnico o tecnólogo",
     form: "A",
   },
-  { value: "assistant", label: "Asistente o auxiliar", form: "B" },
-  { value: "operator", label: "Operario o servicios generales", form: "B" },
+  { value: "assistant", label: "Auxiliar, asistente administrativo o asistente técnico", form: "B" },
+  { value: "operator", label: "Operario, operador, ayudante o servicios generales", form: "B" },
 ];
 
 export const FORM_BY_ROLE = Object.fromEntries(

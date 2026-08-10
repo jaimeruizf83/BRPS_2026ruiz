@@ -185,7 +185,7 @@ export default async function DocumentReview({
               </label>
               <label className="check-row">
                 <input type="checkbox" name="consentVerified" value="yes" />
-                <span><strong>Verifiqué el soporte de consentimiento</strong><small>Obligatorio únicamente para calificar e incorporar a la campaña.</small></span>
+                <span><strong>Verifiqué el soporte de consentimiento</strong><small>Obligatorio únicamente para calificar e incorporar a la aplicación.</small></span>
               </label>
               <div className="review-actions">
                 <button className="button button-secondary" type="submit" name="action" value="save">Guardar revisión</button>

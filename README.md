@@ -1,10 +1,10 @@
 # BRPS 2026 Ruiz
 
-Aplicación web segura y responsive para organizar campañas de evaluación de factores de riesgo psicosocial, asignar la Forma A o B según el nivel del cargo, registrar consentimiento, calcular resultados configurables y producir reportes con controles de confidencialidad.
+Aplicación web segura y responsive para gestionar aplicaciones de la Batería de Riesgo Psicosocial, capturar manualmente la estructura V3, asignar la Forma A o B según el nivel ocupacional y mantener controles de confidencialidad y trazabilidad.
 
-## Importante: versión demostrativa
+## Importante: captura V3 e interpretación controlada
 
-El producto funciona de extremo a extremo, pero contiene un **banco sintético**. No incluye preguntas, claves ni baremos oficiales y sus resultados **no son válidos para diagnóstico ni decisiones ocupacionales**. Antes del uso real, un profesional autorizado debe integrar una copia legítima del instrumento, verificar cálculos y aprobar el tratamiento de datos.
+La captura manual usa la numeración, escalas, filtros y cantidades del Aplicativo V3 sin reproducir los enunciados oficiales. El flujo digital anterior conserva un **banco sintético** y sus resultados no son válidos para diagnóstico ni decisiones ocupacionales. La calificación V3 se habilitará solo con un motor oficial auditado por un profesional autorizado.
 
 No se incluyen el Excel histórico, contraseñas, nombres de trabajadores ni respuestas reales.
 
@@ -13,7 +13,12 @@ No se incluyen el Excel histórico, contraseñas, nombres de trabajadores ni res
 - Inicio responsive y panel de control.
 - Identidad administradora de ChatGPT; la app no almacena contraseñas.
 - Roles: superadministración, profesional SST/psicología, administración de empresa y consulta.
-- Organizaciones, equipo, campañas y estados de aplicación.
+- Organizaciones, equipo, aplicaciones y estados operativos.
+- Configuración V3: empresa, nombre de evaluación, código interno, fecha de corte y responsable técnico.
+- Registro manual por etapas: datos generales, Intralaboral A/B, Extralaboral y Estrés.
+- Conteos oficiales máximos: 123 ítems en A, 97 en B, 31 extralaborales y 31 de estrés.
+- Filtros oficiales de atención a clientes/usuarios y jefatura con personal a cargo.
+- Borradores, control de duplicados, validación de faltantes y bloqueo al finalizar.
 - Códigos seudónimos y enlaces aleatorios de un solo uso, guardados solo como hash.
 - Asignación automática A/B por nivel del cargo.
 - Consentimiento versionado y prevención de duplicados.
@@ -67,15 +72,15 @@ Para cambiar el esquema, edita `db/schema.ts` y ejecuta `npm run db:generate`.
 ## Flujo
 
 1. Registra organizaciones y responsables.
-2. Crea una campaña en borrador.
-3. Genera un código seudónimo y selecciona el nivel del cargo; la app fija A o B.
-4. Activa la campaña y entrega el enlace por un canal privado.
-5. El participante consiente, responde y envía una vez.
-6. Monitorea avance, cierra la campaña y consulta reportes protegidos.
+2. Crea una aplicación V3 en borrador.
+3. Abre **Registro manual V3**, asigna un código y selecciona el nivel ocupacional; la app fija A o B.
+4. Registra la ficha general y transcribe las respuestas intralaborales, extralaborales y de estrés.
+5. Revisa filtros, faltantes y consentimiento antes de finalizar y bloquear la captura.
+6. También puedes activar la aplicación y entregar invitaciones digitales por un canal privado.
 
 ### Flujo por lotes
 
-1. Abre **Lotes**, selecciona una campaña y carga hasta 20 PDF (15 MB cada uno, 50 MB por lote) o pega enlaces individuales de Drive.
+1. Abre **Lotes**, selecciona una aplicación y carga hasta 20 PDF (15 MB cada uno, 50 MB por lote) o pega enlaces individuales de Drive.
 2. Procesa los documentos de forma secuencial. Los enlaces de Drive deben estar compartidos para quien tenga el vínculo; las carpetas privadas requieren OAuth y no se importan.
 3. Compara cada posición detectada con el original, corrige dudas y confirma la tabulación.
 4. Exporta la matriz a CSV. La incorporación a resultados solo se permite con una plantilla compatible y consentimiento verificado.

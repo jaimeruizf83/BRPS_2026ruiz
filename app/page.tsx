@@ -45,8 +45,8 @@ export default async function Home() {
             <span>Decisiones responsables.</span>
           </h1>
           <p className="hero-lead">
-            Organiza campañas, asigna correctamente la Forma A o B, protege la
-            confidencialidad y convierte respuestas en reportes accionables.
+            Configura cada aplicación, registra manualmente la ficha V3 y sus
+            instrumentos, protege la confidencialidad y controla la completitud.
           </p>
           <div className="hero-actions">
             <Link
@@ -72,7 +72,7 @@ export default async function Home() {
           <div className="preview-card">
             <div className="preview-top">
               <div>
-                <small>Campaña activa</small>
+                <small>Aplicación activa</small>
                 <strong>Diagnóstico organizacional</strong>
               </div>
               <span className="status status-active">Activa</span>
@@ -106,7 +106,7 @@ export default async function Home() {
       </section>
 
       <section className="proof-strip">
-        <div><strong>01</strong><span>Campañas centralizadas</span></div>
+        <div><strong>V3</strong><span>Captura manual estructurada</span></div>
         <div><strong>A/B</strong><span>Enrutamiento por cargo</span></div>
         <div><strong>1×</strong><span>Enlaces de un solo uso</span></div>
         <div><strong>5+</strong><span>Protección de grupos pequeños</span></div>
@@ -116,10 +116,10 @@ export default async function Home() {
         <p className="eyebrow">Un flujo completo</p>
         <h2>De la planeación al seguimiento, en un solo lugar</h2>
         <div className="feature-grid">
-          <article><span>01</span><h3>Configura</h3><p>Crea organizaciones, responsables y campañas con fechas y alcance definidos.</p></article>
-          <article><span>02</span><h3>Invita</h3><p>Genera códigos seudónimos y enlaces individuales que no revelan contraseñas.</p></article>
-          <article><span>03</span><h3>Evalúa</h3><p>El sistema dirige a Forma A o B, registra consentimiento y evita duplicados.</p></article>
-          <article><span>04</span><h3>Actúa</h3><p>Consulta tendencias, niveles y reportes colectivos con reglas de privacidad.</p></article>
+          <article><span>01</span><h3>Configura</h3><p>Registra empresa, evaluación, código interno, fecha de corte y responsable técnico.</p></article>
+          <article><span>02</span><h3>Captura</h3><p>Transcribe datos generales, Intralaboral A o B, Extralaboral y Estrés.</p></article>
+          <article><span>03</span><h3>Valida</h3><p>Detecta códigos duplicados y respuestas faltantes antes de cerrar el registro.</p></article>
+          <article><span>04</span><h3>Protege</h3><p>Restringe los datos individuales y mantiene trazabilidad de cada evaluación.</p></article>
         </div>
       </section>
 
@@ -137,11 +137,11 @@ export default async function Home() {
       </section>
 
       <section className="demo-warning">
-        <strong>Versión funcional con instrumento demostrativo</strong>
+        <strong>Captura V3 disponible; interpretación controlada</strong>
         <p>
-          El flujo está listo para operación técnica. Antes de uso ocupacional,
-          un profesional autorizado debe cargar el banco oficial licenciado y
-          validar baremos, consentimiento y tratamiento de datos aplicables.
+          El registro manual utiliza la estructura y las escalas V3 sin reproducir
+          los enunciados oficiales. La calificación ocupacional se habilitará solo
+          con el motor oficial auditado y bajo responsabilidad profesional.
         </p>
       </section>
 

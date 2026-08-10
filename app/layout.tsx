@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     template: "%s · BRPS 2026 Ruiz",
   },
   description:
-    "Gestión segura de campañas y evaluaciones de factores de riesgo psicosocial.",
+    "Aplicación segura de la Batería de Riesgo Psicosocial con captura manual V3.",
   other: {
     "codex-preview": "development",
   },

@@ -52,6 +52,21 @@ export const campaigns = sqliteTable(
   (table) => [index("campaigns_org_idx").on(table.organizationId)],
 );
 
+// The legacy `campaigns` table is retained to preserve existing deployments.
+// Product routes expose these records as battery applications and keep the
+// V3-specific configuration in this one-to-one profile.
+export const applicationProfiles = sqliteTable("application_profiles", {
+  campaignId: text("campaign_id")
+    .primaryKey()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  internalCode: text("internal_code").notNull(),
+  cutoffDate: text("cutoff_date").notNull(),
+  technicalResponsible: text("technical_responsible").notNull(),
+  batteryVersion: text("battery_version").notNull().default("V3"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const participants = sqliteTable(
   "participants",
   {
@@ -99,6 +114,45 @@ export const submissions = sqliteTable(
   (table) => [
     uniqueIndex("submissions_participant_uq").on(table.participantId),
     index("submissions_completed_idx").on(table.completedAt),
+  ],
+);
+
+export const manualEvaluations = sqliteTable(
+  "manual_evaluations",
+  {
+    id: text("id").primaryKey(),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    participantCode: text("participant_code").notNull(),
+    roleLevel: text("role_level", {
+      enum: ["leadership", "professional_technical", "assistant", "operator"],
+    }).notNull(),
+    instrumentForm: text("instrument_form", { enum: ["A", "B"] }).notNull(),
+    evaluatorEmail: text("evaluator_email").notNull(),
+    status: text("status", { enum: ["draft", "completed"] })
+      .notNull()
+      .default("draft"),
+    sociodemographicJson: text("sociodemographic_json").notNull().default("{}"),
+    intralaboralAnswersJson: text("intralaboral_answers_json").notNull().default("{}"),
+    extralaboralAnswersJson: text("extralaboral_answers_json").notNull().default("{}"),
+    stressAnswersJson: text("stress_answers_json").notNull().default("{}"),
+    servesCustomers: integer("serves_customers", { mode: "boolean" }),
+    supervisesPeople: integer("supervises_people", { mode: "boolean" }).notNull(),
+    consentVerified: integer("consent_verified", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    completedAt: text("completed_at"),
+  },
+  (table) => [
+    uniqueIndex("manual_evaluations_application_code_uq").on(
+      table.campaignId,
+      table.participantCode,
+    ),
+    index("manual_evaluations_application_idx").on(table.campaignId),
+    index("manual_evaluations_updated_idx").on(table.updatedAt),
   ],
 );
 

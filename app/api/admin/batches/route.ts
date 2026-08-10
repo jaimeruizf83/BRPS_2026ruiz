@@ -71,13 +71,13 @@ export async function POST(request: Request) {
     if (isResponse(user)) return user;
     if (!canViewIndividual(user)) return new Response("No autorizado", { status: 403 });
 
-    const campaignId = textField(form, "campaignId", { required: true, max: 80 });
+    const campaignId = textField(form, "applicationId", { required: true, max: 80 });
     const campaign = await one<Campaign>(
       "SELECT id, organization_id FROM campaigns WHERE id = ?",
       campaignId,
     );
     if (!campaign || !hasOrganizationAccess(user, campaign.organization_id)) {
-      return new Response("Campaña no encontrada", { status: 404 });
+      return new Response("Aplicación no encontrada", { status: 404 });
     }
     const name = textField(form, "name", { required: true, max: 100 });
     const requested = textField(form, "requestedForm", { required: true, max: 8 });

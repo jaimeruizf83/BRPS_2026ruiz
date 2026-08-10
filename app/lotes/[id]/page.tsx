@@ -111,7 +111,7 @@ export default async function BatchDetail({
       {query.created && <Notice tone="success">Se guardaron {query.created} PDF en almacenamiento privado.</Notice>}
       {query.processed && <Notice tone="success">La lectura quedó lista para revisión profesional.</Notice>}
       {query.tabulated && <Notice tone="success">Tabulación confirmada.</Notice>}
-      {query.scored && <Notice tone="success">Plantilla demostrativa calificada e incorporada a la campaña.</Notice>}
+      {query.scored && <Notice tone="success">Plantilla demostrativa calificada e incorporada a la aplicación.</Notice>}
       {query.deleted && <Notice tone="success">El PDF original fue eliminado; la tabulación y la auditoría permanecen.</Notice>}
       {query.warning && <Notice tone="warning">{query.warning}</Notice>}
       {query.error && <Notice tone="danger">{query.error}</Notice>}
