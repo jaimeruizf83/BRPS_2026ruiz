@@ -1,8 +1,11 @@
 type Bindings = {
   DB?: D1Database;
+  BUCKET?: R2Bucket;
   BRPS_ADMIN_EMAILS?: string;
   BRPS_APP_SECRET?: string;
   MIN_GROUP_SIZE?: string;
+  OPENAI_API_KEY?: string;
+  OPENAI_BATCH_MODEL?: string;
 };
 
 declare global {
@@ -21,6 +24,16 @@ export function getD1(): D1Database {
     );
   }
   return database;
+}
+
+export function getBucket(): R2Bucket {
+  const bucket = getBindings().BUCKET;
+  if (!bucket) {
+    throw new Error(
+      "El almacenamiento privado R2 no está disponible. Verifica el binding BUCKET de Sites.",
+    );
+  }
+  return bucket;
 }
 
 const schemaStatements = [
@@ -82,6 +95,59 @@ const schemaStatements = [
     completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE INDEX IF NOT EXISTS submissions_completed_idx ON submissions(completed_at)`,
+  `CREATE TABLE IF NOT EXISTS scoring_batches (
+    id TEXT PRIMARY KEY,
+    campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    requested_form TEXT NOT NULL DEFAULT 'auto' CHECK(requested_form IN ('auto','A','B')),
+    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','completed')),
+    delete_originals_after_confirmation INTEGER NOT NULL DEFAULT 1,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS scoring_batches_campaign_idx ON scoring_batches(campaign_id)`,
+  `CREATE INDEX IF NOT EXISTS scoring_batches_created_idx ON scoring_batches(created_at)`,
+  `CREATE TABLE IF NOT EXISTS batch_documents (
+    id TEXT PRIMARY KEY,
+    batch_id TEXT NOT NULL REFERENCES scoring_batches(id) ON DELETE CASCADE,
+    original_name TEXT NOT NULL,
+    source_type TEXT NOT NULL CHECK(source_type IN ('upload','drive')),
+    source_reference TEXT,
+    r2_key TEXT,
+    byte_size INTEGER NOT NULL,
+    file_sha256 TEXT NOT NULL,
+    mime_type TEXT NOT NULL DEFAULT 'application/pdf',
+    status TEXT NOT NULL DEFAULT 'uploaded' CHECK(status IN ('uploaded','processing','review','reviewed','tabulated','scored','failed')),
+    detected_form TEXT CHECK(detected_form IN ('A','B','unknown')),
+    participant_code TEXT,
+    role_level TEXT CHECK(role_level IN ('leadership','professional_technical','assistant','operator')),
+    document_confidence REAL,
+    warnings_json TEXT NOT NULL DEFAULT '[]',
+    extraction_model TEXT,
+    error_message TEXT,
+    imported_submission_id TEXT REFERENCES submissions(id) ON DELETE SET NULL,
+    reviewed_by TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at TEXT,
+    reviewed_at TEXT,
+    confirmed_at TEXT,
+    original_deleted_at TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS batch_documents_batch_idx ON batch_documents(batch_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS batch_documents_batch_sha_uq ON batch_documents(batch_id,file_sha256)`,
+  `CREATE TABLE IF NOT EXISTS batch_answers (
+    id TEXT PRIMARY KEY,
+    document_id TEXT NOT NULL REFERENCES batch_documents(id) ON DELETE CASCADE,
+    item_number INTEGER NOT NULL,
+    selected_value INTEGER,
+    reviewed_value INTEGER,
+    confidence REAL NOT NULL DEFAULT 0,
+    multiple_marks INTEGER NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT ''
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS batch_answers_document_item_uq ON batch_answers(document_id,item_number)`,
+  `CREATE INDEX IF NOT EXISTS batch_answers_document_idx ON batch_answers(document_id)`,
   `CREATE TABLE IF NOT EXISTS audit_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     actor_email TEXT,

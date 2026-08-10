@@ -11,4 +11,6 @@ No copies ítems desde archivos históricos o manuales sin confirmar derechos de
 7. Versiona el instrumento y conserva trazabilidad histórica.
 8. Retira la etiqueta demo solo tras aprobación profesional y jurídica.
 
-Puntos de integración: `lib/instruments.ts`, `lib/scoring.ts` y `tests/scoring.test.ts`.
+Para habilitar calificación real de PDF escaneados, agrega también una plantilla de lectura validada: cantidad y numeración de ítems, orden de las cinco posiciones, reglas de inversión, detección A/B y casos de doble marca o blanco. Evalúa la concordancia contra una muestra anonimizada revisada por dos profesionales antes de aceptar resultados automáticos. La confianza del modelo orienta la revisión, pero no sustituye la verificación del original.
+
+Puntos de integración: `lib/instruments.ts`, `lib/scoring.ts`, `lib/openai-extraction.ts` y las pruebas de puntuación/lotes.

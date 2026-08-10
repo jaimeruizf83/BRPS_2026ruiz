@@ -147,6 +147,7 @@ export default async function Dashboard() {
             <div className="card-body quick-list">
               <Link className="quick-link" href="/organizaciones#nueva"><span>+</span><div><strong>Nueva organización</strong><small>Registrar empresa y datos básicos</small></div></Link>
               <Link className="quick-link" href="/campanas#nueva"><span>◎</span><div><strong>Crear campaña</strong><small>Definir periodo y alcance</small></div></Link>
+              <Link className="quick-link" href="/lotes#nuevo"><span>▦</span><div><strong>Calificar por lotes</strong><small>Cargar PDF y revisar tabulación</small></div></Link>
               <Link className="quick-link" href="/equipo#nuevo"><span>♙</span><div><strong>Agregar responsable</strong><small>Asignar un rol de acceso</small></div></Link>
             </div>
           </section>

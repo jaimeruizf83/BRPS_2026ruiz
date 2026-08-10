@@ -55,6 +55,14 @@ export function StatusPill({ value }: { value: string }) {
     invited: "Invitado",
     started: "Iniciado",
     completed: "Completado",
+    open: "Abierto",
+    uploaded: "Cargado",
+    processing: "Procesando",
+    review: "Por revisar",
+    reviewed: "Revisado",
+    tabulated: "Tabulado",
+    scored: "Calificado demo",
+    failed: "Con error",
   };
   return <span className={`status status-${value}`}>{labels[value] ?? value}</span>;
 }

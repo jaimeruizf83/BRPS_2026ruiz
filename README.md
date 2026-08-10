@@ -21,6 +21,9 @@ No se incluyen el Excel histórico, contraseñas, nombres de trabajadores ni res
 - Resultados individuales restringidos.
 - Reportes A/B separados, con supresión bajo el mínimo grupal.
 - CSV protegido contra fórmulas, auditoría, impresión/PDF y diseño móvil.
+- Calificación por lotes con carga múltiple de PDF o enlaces individuales compartidos de Google Drive.
+- Almacenamiento privado R2, lectura estructurada, confianza por ítem y revisión profesional obligatoria.
+- Tabulación CSV flexible y calificación demo solo cuando la hoja coincide con la plantilla disponible.
 
 ## Arquitectura
 
@@ -28,7 +31,7 @@ No se incluyen el Excel histórico, contraseñas, nombres de trabajadores ni res
 |---|---|
 | Interfaz y servidor | React App Router sobre Vinext |
 | Ejecución | Cloudflare Worker / OpenAI Sites |
-| Persistencia | Cloudflare D1 (SQLite) |
+| Persistencia | Cloudflare D1 (metadatos) + R2 privado (PDF temporales) |
 | Identidad | Sign in with ChatGPT administrado por Sites |
 | Migraciones | Drizzle Kit |
 | Calidad | ESLint + Node Test Runner + GitHub Actions |
@@ -43,11 +46,15 @@ Node.js 22.13 o superior y un proyecto Sites con binding D1 `DB`.
 BRPS_ADMIN_EMAILS=administrador@ejemplo.com
 BRPS_APP_SECRET=secreto-aleatorio-de-32-o-mas-caracteres
 MIN_GROUP_SIZE=5
+OPENAI_API_KEY=secreto-del-proyecto
+OPENAI_BATCH_MODEL=gpt-4.1
 ```
 
 - `BRPS_ADMIN_EMAILS`: lista separada por comas de superadministradores iniciales.
 - `BRPS_APP_SECRET`: secreto HMAC; debe configurarse como secreto del entorno.
 - `MIN_GROUP_SIZE`: mínimo para mostrar agregados; el código nunca permite menos de 3.
+- `OPENAI_API_KEY`: secreto usado en servidor para pretabular PDF; nunca se expone al navegador.
+- `OPENAI_BATCH_MODEL`: modelo con visión y entrada PDF; el valor predeterminado es `gpt-4.1`.
 
 ```bash
 npm ci
@@ -65,6 +72,15 @@ Para cambiar el esquema, edita `db/schema.ts` y ejecuta `npm run db:generate`.
 4. Activa la campaña y entrega el enlace por un canal privado.
 5. El participante consiente, responde y envía una vez.
 6. Monitorea avance, cierra la campaña y consulta reportes protegidos.
+
+### Flujo por lotes
+
+1. Abre **Lotes**, selecciona una campaña y carga hasta 20 PDF (15 MB cada uno, 50 MB por lote) o pega enlaces individuales de Drive.
+2. Procesa los documentos de forma secuencial. Los enlaces de Drive deben estar compartidos para quien tenga el vínculo; las carpetas privadas requieren OAuth y no se importan.
+3. Compara cada posición detectada con el original, corrige dudas y confirma la tabulación.
+4. Exporta la matriz a CSV. La incorporación a resultados solo se permite con una plantilla compatible y consentimiento verificado.
+
+La llamada de lectura usa la Responses API con salida JSON estricta y `store: false`. Los originales pueden eliminarse automáticamente después de la confirmación.
 
 ## Seguridad y privacidad
 

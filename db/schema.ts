@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const organizations = sqliteTable("organizations", {
   id: text("id").primaryKey(),
@@ -99,6 +99,117 @@ export const submissions = sqliteTable(
   (table) => [
     uniqueIndex("submissions_participant_uq").on(table.participantId),
     index("submissions_completed_idx").on(table.completedAt),
+  ],
+);
+
+export const scoringBatches = sqliteTable(
+  "scoring_batches",
+  {
+    id: text("id").primaryKey(),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    requestedForm: text("requested_form", { enum: ["auto", "A", "B"] })
+      .notNull()
+      .default("auto"),
+    status: text("status", { enum: ["open", "completed"] })
+      .notNull()
+      .default("open"),
+    deleteOriginalsAfterConfirmation: integer(
+      "delete_originals_after_confirmation",
+      { mode: "boolean" },
+    )
+      .notNull()
+      .default(true),
+    createdBy: text("created_by").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    completedAt: text("completed_at"),
+  },
+  (table) => [
+    index("scoring_batches_campaign_idx").on(table.campaignId),
+    index("scoring_batches_created_idx").on(table.createdAt),
+  ],
+);
+
+export const batchDocuments = sqliteTable(
+  "batch_documents",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => scoringBatches.id, { onDelete: "cascade" }),
+    originalName: text("original_name").notNull(),
+    sourceType: text("source_type", { enum: ["upload", "drive"] }).notNull(),
+    sourceReference: text("source_reference"),
+    r2Key: text("r2_key"),
+    byteSize: integer("byte_size").notNull(),
+    fileSha256: text("file_sha256").notNull(),
+    mimeType: text("mime_type").notNull().default("application/pdf"),
+    status: text("status", {
+      enum: [
+        "uploaded",
+        "processing",
+        "review",
+        "reviewed",
+        "tabulated",
+        "scored",
+        "failed",
+      ],
+    })
+      .notNull()
+      .default("uploaded"),
+    detectedForm: text("detected_form", { enum: ["A", "B", "unknown"] }),
+    participantCode: text("participant_code"),
+    roleLevel: text("role_level", {
+      enum: ["leadership", "professional_technical", "assistant", "operator"],
+    }),
+    documentConfidence: real("document_confidence"),
+    warningsJson: text("warnings_json").notNull().default("[]"),
+    extractionModel: text("extraction_model"),
+    errorMessage: text("error_message"),
+    importedSubmissionId: text("imported_submission_id").references(
+      () => submissions.id,
+      { onDelete: "set null" },
+    ),
+    reviewedBy: text("reviewed_by"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    processedAt: text("processed_at"),
+    reviewedAt: text("reviewed_at"),
+    confirmedAt: text("confirmed_at"),
+    originalDeletedAt: text("original_deleted_at"),
+  },
+  (table) => [
+    index("batch_documents_batch_idx").on(table.batchId),
+    uniqueIndex("batch_documents_batch_sha_uq").on(
+      table.batchId,
+      table.fileSha256,
+    ),
+  ],
+);
+
+export const batchAnswers = sqliteTable(
+  "batch_answers",
+  {
+    id: text("id").primaryKey(),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => batchDocuments.id, { onDelete: "cascade" }),
+    itemNumber: integer("item_number").notNull(),
+    selectedValue: integer("selected_value"),
+    reviewedValue: integer("reviewed_value"),
+    confidence: real("confidence").notNull().default(0),
+    multipleMarks: integer("multiple_marks", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    notes: text("notes").notNull().default(""),
+  },
+  (table) => [
+    uniqueIndex("batch_answers_document_item_uq").on(
+      table.documentId,
+      table.itemNumber,
+    ),
+    index("batch_answers_document_idx").on(table.documentId),
   ],
 );
 

@@ -8,6 +8,7 @@ const nav = [
   { href: "/dashboard", label: "Resumen", icon: "⌂" },
   { href: "/organizaciones", label: "Organizaciones", icon: "◇" },
   { href: "/campanas", label: "Campañas", icon: "◎" },
+  { href: "/lotes", label: "Lotes", icon: "▦" },
   { href: "/equipo", label: "Equipo", icon: "♙" },
 ];
 
