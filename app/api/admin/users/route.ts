@@ -1,5 +1,66 @@
 import { audit, one, run } from "@/db";
 import { authenticatedForm, isResponse, redirectTo, textField } from "@/lib/http";
+import { hashPassword } from "@/lib/passwords";
 import type { AppRole } from "@/lib/types";
-const roles=new Set<AppRole>(["super_admin","psychologist","company_admin","viewer"]);
-export async function POST(request:Request){try{const form=await request.formData();const user=await authenticatedForm(request,form,"user:create");if(isResponse(user))return user;if(user.role!=="super_admin")return new Response("Permiso insuficiente",{status:403});const name=textField(form,"name",{required:true,max:100});const email=textField(form,"email",{required:true,max:200}).toLowerCase();const role=textField(form,"role",{required:true,max:40}) as AppRole;const organizationId=textField(form,"organizationId",{max:60});if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error("El correo no es válido");if(!roles.has(role))throw new Error("El rol no es válido");if(["company_admin","viewer"].includes(role)&&!organizationId)throw new Error("Selecciona una organización para ese rol");if(organizationId&&!await one<{id:string}>("SELECT id FROM organizations WHERE id = ?",organizationId))throw new Error("La organización no existe");await run(`INSERT INTO app_users (id,organization_id,name,email,role,active) VALUES (?,?,?,?,?,1) ON CONFLICT(email) DO UPDATE SET organization_id=excluded.organization_id,name=excluded.name,role=excluded.role,active=1`,crypto.randomUUID(),organizationId||null,name,email,role);await audit(user.email,"user.authorized","user",email,{role,organizationId:organizationId||null});return redirectTo(request,"/equipo",{ok:"1"});}catch(error){return redirectTo(request,"/equipo",{error:error instanceof Error?error.message:"No fue posible autorizar el acceso"});}}
+
+const roles = new Set<AppRole>(["super_admin", "psychologist", "company_admin", "viewer"]);
+
+export async function POST(request: Request) {
+  try {
+    const form = await request.formData();
+    const user = await authenticatedForm(request, form, "user:create");
+    if (isResponse(user)) return user;
+    if (user.role !== "super_admin") return new Response("Permiso insuficiente", { status: 403 });
+
+    const name = textField(form, "name", { required: true, max: 100 });
+    const email = textField(form, "email", { required: true, max: 200 }).toLowerCase();
+    const role = textField(form, "role", { required: true, max: 40 }) as AppRole;
+    const organizationId = textField(form, "organizationId", { max: 60 });
+    const passwordValue = form.get("password");
+    const confirmationValue = form.get("passwordConfirmation");
+    const password = typeof passwordValue === "string" ? passwordValue : "";
+    const confirmation = typeof confirmationValue === "string" ? confirmationValue : "";
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("El correo no es válido");
+    if (!roles.has(role)) throw new Error("El rol no es válido");
+    if (["company_admin", "viewer"].includes(role) && !organizationId) {
+      throw new Error("Selecciona una organización para ese rol");
+    }
+    if (organizationId && !await one<{ id: string }>("SELECT id FROM organizations WHERE id=?", organizationId)) {
+      throw new Error("La organización no existe");
+    }
+    if (password !== confirmation) throw new Error("La confirmación de la contraseña no coincide");
+    const passwordHash = await hashPassword(password);
+
+    await run(
+      `INSERT INTO app_users
+        (id,organization_id,name,email,role,active,password_hash,password_version,failed_login_count,locked_until)
+       VALUES (?,?,?,?,?,1,?,1,0,NULL)
+       ON CONFLICT(email) DO UPDATE SET
+        organization_id=excluded.organization_id,
+        name=excluded.name,
+        role=excluded.role,
+        active=1,
+        password_hash=excluded.password_hash,
+        password_version=app_users.password_version+1,
+        failed_login_count=0,
+        locked_until=NULL`,
+      crypto.randomUUID(),
+      organizationId || null,
+      name,
+      email,
+      role,
+      passwordHash,
+    );
+    await audit(user.email, "user.authorized", "user", email, {
+      role,
+      organizationId: organizationId || null,
+      passwordConfigured: true,
+    });
+    return redirectTo(request, "/equipo", { ok: "1" });
+  } catch (error) {
+    return redirectTo(request, "/equipo", {
+      error: error instanceof Error ? error.message : "No fue posible autorizar el acceso",
+    });
+  }
+}

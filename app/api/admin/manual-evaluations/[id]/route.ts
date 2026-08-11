@@ -12,12 +12,14 @@ import {
   readSociodemographic,
   v3Completion,
 } from "@/lib/v3";
+import { scoreV3Battery, V3_SCORING_VERSION } from "@/lib/v3-scoring";
 
 type ManualEvaluation = {
   id: string;
   campaign_id: string;
   organization_id: string;
   instrument_form: "A" | "B";
+  role_level: "leadership" | "professional_technical" | "assistant" | "operator";
   status: "draft" | "completed";
   sociodemographic_json: string;
   intralaboral_answers_json: string;
@@ -142,17 +144,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         ].filter(Boolean);
         throw new Error(`Aún falta: ${pending.join(", ")}`);
       }
+      const result = scoreV3Battery({
+        form: evaluation.instrument_form,
+        roleLevel: evaluation.role_level,
+        intralaboral: parseRecord(evaluation.intralaboral_answers_json),
+        extralaboral: parseRecord(evaluation.extralaboral_answers_json),
+        stress: parseRecord(evaluation.stress_answers_json),
+        servesCustomers: Boolean(evaluation.serves_customers),
+        supervisesPeople: Boolean(evaluation.supervises_people),
+      });
+      if (!result.valid) throw new Error("La captura no cumple las reglas de validez para ejecutar la calificación V3");
       await run(
         `UPDATE manual_evaluations
-         SET status='completed',consent_verified=1,completed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
+         SET status='completed',consent_verified=1,results_json=?,scoring_version=?,
+             scored_at=CURRENT_TIMESTAMP,completed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
          WHERE id=?`,
+        JSON.stringify(result),
+        V3_SCORING_VERSION,
         id,
       );
       await audit(user.email, "manual_evaluation.completed", "manual_evaluation", id, {
         form: evaluation.instrument_form,
         batteryVersion: "V3",
+        scoringVersion: V3_SCORING_VERSION,
+        generalRisk: result.general.risk?.key ?? null,
+        stressRisk: result.stress.risk?.key ?? null,
       });
-      return redirectTo(request, `/aplicaciones/${applicationId}/registro-manual`, { completed: "1" });
+      return redirectTo(request, `/aplicaciones/${applicationId}/registro-manual/${id}`, {
+        paso: "revision",
+        scored: "1",
+      });
     } else {
       throw new Error("Etapa de captura inválida");
     }

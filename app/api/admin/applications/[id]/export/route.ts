@@ -2,6 +2,7 @@ import { all, audit, one } from "@/db";
 import { getAuthorizedUser, hasOrganizationAccess } from "@/lib/auth";
 import { escapeCsv } from "@/lib/security";
 import { parseRecord } from "@/lib/v3";
+import type { V3ScoringResult } from "@/lib/v3-scoring";
 
 type ManualRow = {
   participant_code: string;
@@ -11,7 +12,18 @@ type ManualRow = {
   sociodemographic_json: string;
   created_at: string;
   completed_at: string | null;
+  results_json: string;
+  scoring_version: string | null;
 };
+
+function readResult(value: string) {
+  try {
+    const parsed = JSON.parse(value) as V3ScoringResult;
+    return parsed?.engineVersion && parsed?.general ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,7 +40,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return new Response("Aplicación no autorizada", { status: 403 });
   }
   const rows = await all<ManualRow>(
-    `SELECT participant_code,role_level,instrument_form,status,sociodemographic_json,created_at,completed_at
+    `SELECT participant_code,role_level,instrument_form,status,sociodemographic_json,created_at,completed_at,results_json,scoring_version
      FROM manual_evaluations WHERE campaign_id=? ORDER BY participant_code`,
     id,
   );
@@ -41,9 +53,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     "fecha_aplicacion",
     "creado",
     "finalizado",
+    "version_calificacion",
+    "intralaboral_puntaje",
+    "intralaboral_nivel",
+    "extralaboral_puntaje",
+    "extralaboral_nivel",
+    "general_puntaje",
+    "general_nivel",
+    "estres_puntaje",
+    "estres_nivel",
   ]];
   for (const row of rows) {
     const socio = parseRecord(row.sociodemographic_json);
+    const result = readResult(row.results_json);
     data.push([
       row.participant_code,
       socio.fullName ?? "",
@@ -53,6 +75,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       socio.applicationDate ?? "",
       row.created_at,
       row.completed_at ?? "",
+      row.scoring_version ?? "",
+      result?.intralaboral.total.score ?? "",
+      result?.intralaboral.total.risk?.label ?? "",
+      result?.extralaboral.total.score ?? "",
+      result?.extralaboral.total.risk?.label ?? "",
+      result?.general.score ?? "",
+      result?.general.risk?.label ?? "",
+      result?.stress.score ?? "",
+      result?.stress.risk?.label ?? "",
     ]);
   }
   await audit(user.email, "application.manual_exported", "application", id, { rows: rows.length });

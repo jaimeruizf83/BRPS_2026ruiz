@@ -9,6 +9,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { ROLE_LEVELS } from "@/lib/instruments";
 import { issueCsrf } from "@/lib/security";
 import type { ScoreResult } from "@/lib/types";
+import type { V3ScoringResult } from "@/lib/v3-scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,16 @@ type Application = {
   battery_version: string | null;
 };
 type Participant = { id: string; participant_code: string; instrument_form: "A" | "B"; status: string; created_at: string; submission_id: string | null; completed_at: string | null; results_json: string | null };
-type ManualEvaluation = { id: string; participant_code: string; instrument_form: "A" | "B"; status: string; updated_at: string; completed_at: string | null; sociodemographic_json: string };
+type ManualEvaluation = { id: string; participant_code: string; instrument_form: "A" | "B"; status: string; updated_at: string; completed_at: string | null; sociodemographic_json: string; results_json: string };
+
+function readV3Result(value: string) {
+  try {
+    const parsed = JSON.parse(value) as V3ScoringResult;
+    return parsed?.engineVersion && parsed?.general ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export default async function ApplicationDetail({
   params,
@@ -54,7 +64,7 @@ export default async function ApplicationDetail({
     id,
   );
   const manualEvaluations = await all<ManualEvaluation>(
-    `SELECT id,participant_code,instrument_form,status,updated_at,completed_at,sociodemographic_json
+    `SELECT id,participant_code,instrument_form,status,updated_at,completed_at,sociodemographic_json,results_json
      FROM manual_evaluations WHERE campaign_id=? ORDER BY updated_at DESC`,
     id,
   );
@@ -113,10 +123,11 @@ export default async function ApplicationDetail({
       <section className="card detail-content">
         <div className="card-header"><div><h2>Registros manuales V3</h2><p>Ficha general, Intralaboral A/B, Extralaboral y Estrés</p></div>{canViewIndividual(user) && <Link className="table-link" href={`/aplicaciones/${id}/registro-manual`}>Administrar →</Link>}</div>
         {manualEvaluations.length ? (
-          <div className="table-wrap"><table><thead><tr><th>Código</th><th>Forma</th><th>Estado</th><th>Actualización</th><th /></tr></thead><tbody>
-            {manualEvaluations.map((evaluation) => (
-              <tr key={evaluation.id}><td><strong>{evaluation.participant_code}</strong></td><td><span className="form-badge">{evaluation.instrument_form}</span></td><td><StatusPill value={evaluation.status} /></td><td>{formatDateTime(evaluation.completed_at || evaluation.updated_at)}</td><td>{canViewIndividual(user) && <Link className="table-link" href={`/aplicaciones/${id}/registro-manual/${evaluation.id}?paso=${evaluation.status === "completed" ? "revision" : "datos"}`}>{evaluation.status === "completed" ? "Ver" : "Continuar"}</Link>}</td></tr>
-            ))}
+          <div className="table-wrap"><table><thead><tr><th>Código</th><th>Forma</th><th>Estado</th><th>Resultado general</th><th>Actualización</th><th /></tr></thead><tbody>
+            {manualEvaluations.map((evaluation) => {
+              const result = readV3Result(evaluation.results_json);
+              return <tr key={evaluation.id}><td><strong>{evaluation.participant_code}</strong></td><td><span className="form-badge">{evaluation.instrument_form}</span></td><td><StatusPill value={evaluation.status} /></td><td>{result ? <RiskPill level={result.general.risk?.key} label={`${result.general.score?.toFixed(1) ?? "—"} · ${result.general.risk?.label ?? "No calculable"}`} /> : "—"}</td><td>{formatDateTime(evaluation.completed_at || evaluation.updated_at)}</td><td>{canViewIndividual(user) && <Link className="table-link" href={`/aplicaciones/${id}/registro-manual/${evaluation.id}?paso=${evaluation.status === "completed" ? "revision" : "datos"}`}>{evaluation.status === "completed" ? "Ver resultado" : "Continuar"}</Link>}</td></tr>;
+            })}
           </tbody></table></div>
         ) : (
           <EmptyState title="Sin registros manuales" text="Inicia la captura del primer formato físico o diligenciado fuera de línea." href={canViewIndividual(user) ? `/aplicaciones/${id}/registro-manual` : undefined} action={canViewIndividual(user) ? "Registrar evaluación" : undefined} />

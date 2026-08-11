@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { chatGPTSignOutPath } from "@/app/chatgpt-auth";
 import type { AuthorizedUser } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/format";
 import { Brand } from "./Brand";
@@ -41,7 +40,7 @@ export function AppShell({
           </div>
           <Link
             className="signout"
-            href={chatGPTSignOutPath("/")}
+            href="/api/auth/signout"
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
           >

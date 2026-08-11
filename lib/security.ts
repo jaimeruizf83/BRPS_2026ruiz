@@ -2,6 +2,7 @@ import { getBindings } from "@/db";
 
 const encoder = new TextEncoder();
 const CONSENT_VERSION = "2026-08-demo-v1";
+export const BRPS_PASSWORD_SESSION_COOKIE = "brps_access";
 
 export { CONSENT_VERSION };
 
@@ -96,6 +97,72 @@ export async function verifyCsrf(
 
 export async function hashIp(ip: string) {
   return bytesToBase64Url(await hmac(`ip:${ip || "unknown"}`));
+}
+
+export async function issuePasswordSession(
+  userId: string,
+  email: string,
+  passwordVersion: number,
+  ttlHours = 12,
+) {
+  const payload = bytesToBase64Url(
+    encoder.encode(
+      JSON.stringify({
+        userId,
+        email: email.toLowerCase(),
+        passwordVersion,
+        expires: Date.now() + ttlHours * 60 * 60_000,
+        nonce: randomToken(16),
+      }),
+    ),
+  );
+  return `${payload}.${bytesToBase64Url(await hmac(`session:${payload}`))}`;
+}
+
+export async function verifyPasswordSession(
+  token: string,
+  expected: { userId: string; email: string; passwordVersion: number },
+) {
+  try {
+    const [payload, signature] = token.split(".");
+    if (!payload || !signature) return false;
+    const validSignature = bytesToBase64Url(await hmac(`session:${payload}`));
+    if (validSignature.length !== signature.length) return false;
+    let difference = 0;
+    for (let index = 0; index < validSignature.length; index += 1) {
+      difference |= validSignature.charCodeAt(index) ^ signature.charCodeAt(index);
+    }
+    if (difference !== 0) return false;
+    const claims = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payload))) as {
+      userId?: string;
+      email?: string;
+      passwordVersion?: number;
+      expires?: number;
+    };
+    return claims.userId === expected.userId &&
+      claims.email === expected.email.toLowerCase() &&
+      claims.passwordVersion === expected.passwordVersion &&
+      Number(claims.expires) >= Date.now();
+  } catch {
+    return false;
+  }
+}
+
+export function cookieValue(cookieHeader: string | null, name: string) {
+  if (!cookieHeader) return "";
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
+  }
+  return "";
+}
+
+export function passwordSessionCookie(token: string) {
+  return `${BRPS_PASSWORD_SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`;
+}
+
+export function clearPasswordSessionCookie() {
+  return `${BRPS_PASSWORD_SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 }
 
 export function requestIp(request: Request) {

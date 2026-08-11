@@ -9,6 +9,7 @@ import {
   type ManualStep,
 } from "@/components/ManualEntry";
 import { Notice, PageHeader, StatusPill } from "@/components/Ui";
+import { V3Results } from "@/components/V3Results";
 import { one } from "@/db";
 import { canViewIndividual, hasOrganizationAccess, requireAuthorizedUser } from "@/lib/auth";
 import { ROLE_LEVELS } from "@/lib/instruments";
@@ -24,6 +25,7 @@ import {
   parseRecord,
   v3Completion,
 } from "@/lib/v3";
+import type { V3ScoringResult } from "@/lib/v3-scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,19 @@ type Evaluation = {
   serves_customers: number | null;
   supervises_people: number;
   consent_verified: number;
+  results_json: string;
+  scoring_version: string | null;
+  scored_at: string | null;
 };
+
+function readScoringResult(value: string) {
+  try {
+    const parsed = JSON.parse(value) as V3ScoringResult;
+    return parsed?.engineVersion && parsed?.general && parsed?.stress ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 const STEPS = new Set<ManualStep>(["datos", "intralaboral", "extralaboral", "estres", "revision"]);
 
@@ -53,7 +67,7 @@ export default async function ManualEvaluationEntry({
   searchParams,
 }: {
   params: Promise<{ id: string; evaluationId: string }>;
-  searchParams: Promise<{ paso?: string; created?: string; saved?: string; error?: string }>;
+  searchParams: Promise<{ paso?: string; created?: string; saved?: string; scored?: string; error?: string }>;
 }) {
   const { id, evaluationId } = await params;
   const query = await searchParams;
@@ -75,6 +89,9 @@ export default async function ManualEvaluationEntry({
   const step: ManualStep = evaluation.status === "completed" ? "revision" : STEPS.has(requestedStep) ? requestedStep : "datos";
   const baseHref = `/aplicaciones/${id}/registro-manual/${evaluationId}`;
   const csrf = await issueCsrf(user.email, `manual-evaluation:update:${evaluationId}`, 120);
+  const scoreCsrf = evaluation.status === "completed"
+    ? await issueCsrf(user.email, `manual-evaluation:score:${evaluationId}`, 30)
+    : "";
   const sociodemographic = parseRecord(evaluation.sociodemographic_json);
   const intralaboral = parseRecord(evaluation.intralaboral_answers_json);
   const extralaboral = parseRecord(evaluation.extralaboral_answers_json);
@@ -90,6 +107,7 @@ export default async function ManualEvaluationEntry({
     consentVerified: Boolean(evaluation.consent_verified),
   });
   const roleLabel = ROLE_LEVELS.find((role) => role.value === evaluation.role_level)?.label ?? evaluation.role_level;
+  const scoringResult = readScoringResult(evaluation.results_json);
 
   return (
     <AppShell user={user}>
@@ -101,22 +119,30 @@ export default async function ManualEvaluationEntry({
       />
       {query.created && <Notice tone="success">Registro creado. Completa primero la ficha de datos generales.</Notice>}
       {query.saved && <Notice tone="success">Borrador guardado correctamente.</Notice>}
+      {query.scored && <Notice tone="success">Motor V3 ejecutado. La calificación quedó guardada con trazabilidad.</Notice>}
       {query.error && <Notice tone="danger">{query.error}</Notice>}
       <ManualStepNav baseHref={baseHref} current={step} />
 
       {evaluation.status === "completed" ? (
-        <section className="card manual-form-card">
-          <div className="card-header"><div><h2>Captura finalizada</h2><p>El registro está bloqueado para preservar su trazabilidad.</p></div></div>
-          <div className="card-body">
-            <Notice tone="success">La ficha y los {completion.expectedIntralaboral + V3_COUNTS.extralaboral + V3_COUNTS.stress} ítems requeridos quedaron completos.</Notice>
-            <Notice tone="warning"><strong>Interpretación pendiente.</strong> Esta entrega registra y valida la captura V3; no presenta una calificación clínica u ocupacional hasta habilitar el motor oficial auditado.</Notice>
-            <div className="review-meters">
-              <CompletionMeter label={`Intralaboral Forma ${evaluation.instrument_form}`} value={completion.intraAnswered} expected={completion.expectedIntralaboral} />
-              <CompletionMeter label="Extralaboral" value={completion.extraAnswered} expected={V3_COUNTS.extralaboral} />
-              <CompletionMeter label="Estrés" value={completion.stressAnswered} expected={V3_COUNTS.stress} />
+        <>
+          <section className="card manual-form-card">
+            <div className="card-header"><div><h2>Captura finalizada</h2><p>El registro está bloqueado para preservar su trazabilidad.</p></div></div>
+            <div className="card-body">
+              <Notice tone="success">La ficha y los {completion.expectedIntralaboral + V3_COUNTS.extralaboral + V3_COUNTS.stress} ítems requeridos quedaron completos.</Notice>
+              <div className="review-meters">
+                <CompletionMeter label={`Intralaboral Forma ${evaluation.instrument_form}`} value={completion.intraAnswered} expected={completion.expectedIntralaboral} />
+                <CompletionMeter label="Extralaboral" value={completion.extraAnswered} expected={V3_COUNTS.extralaboral} />
+                <CompletionMeter label="Estrés" value={completion.stressAnswered} expected={V3_COUNTS.stress} />
+              </div>
+              <form className="v3-score-actions" action={`/api/admin/manual-evaluations/${evaluationId}/score`} method="post">
+                <input type="hidden" name="csrf" value={scoreCsrf} />
+                <button className="button button-secondary" type="submit">{scoringResult ? "Recalcular con motor V3" : "Ejecutar motor de calificación V3"}</button>
+                <small>{scoringResult ? `Versión almacenada: ${evaluation.scoring_version ?? scoringResult.engineVersion}` : "El registro es apto para calificación."}</small>
+              </form>
             </div>
-          </div>
-        </section>
+          </section>
+          {scoringResult && <V3Results result={scoringResult} />}
+        </>
       ) : (
         <form className="manual-entry-form" action={`/api/admin/manual-evaluations/${evaluationId}`} method="post">
           <input type="hidden" name="csrf" value={csrf} />

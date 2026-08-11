@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { EmptyState, Notice, PageHeader, StatusPill } from "@/components/Ui";
+import { EmptyState, Notice, PageHeader, RiskPill, StatusPill } from "@/components/Ui";
 import { all, one } from "@/db";
 import { canViewIndividual, hasOrganizationAccess, requireAuthorizedUser } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { ROLE_LEVELS } from "@/lib/instruments";
 import { issueCsrf } from "@/lib/security";
 import { V3_COUNTS, answeredCount, answeredItemCount, applicableIntralaboralItems, parseRecord } from "@/lib/v3";
+import type { V3ScoringResult } from "@/lib/v3-scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,18 @@ type Evaluation = {
   supervises_people: number;
   updated_at: string;
   completed_at: string | null;
+  results_json: string;
+  scoring_version: string | null;
 };
+
+function readScoringResult(value: string) {
+  try {
+    const parsed = JSON.parse(value) as V3ScoringResult;
+    return parsed?.engineVersion && parsed?.general ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export default async function ManualEvaluationsPage({
   params,
@@ -48,7 +60,7 @@ export default async function ManualEvaluationsPage({
     `SELECT id,participant_code,instrument_form,status,sociodemographic_json,
       intralaboral_answers_json,extralaboral_answers_json,stress_answers_json,
       serves_customers,supervises_people,
-      updated_at,completed_at
+      updated_at,completed_at,results_json,scoring_version
      FROM manual_evaluations WHERE campaign_id=? ORDER BY updated_at DESC`,
     id,
   );
@@ -81,7 +93,7 @@ export default async function ManualEvaluationsPage({
           {evaluations.length ? (
             <div className="table-wrap">
               <table className="manual-list-table">
-                <thead><tr><th>Respondiente</th><th>Forma</th><th>Progreso</th><th>Estado</th><th>Actualización</th><th /></tr></thead>
+                <thead><tr><th>Respondiente</th><th>Forma</th><th>Progreso</th><th>Estado</th><th>Resultado general</th><th>Actualización</th><th /></tr></thead>
                 <tbody>
                   {evaluations.map((evaluation) => {
                     const socio = parseRecord(evaluation.sociodemographic_json);
@@ -93,14 +105,16 @@ export default async function ManualEvaluationsPage({
                     const answered = answeredItemCount(parseRecord(evaluation.intralaboral_answers_json), applicableItems) + answeredCount(parseRecord(evaluation.extralaboral_answers_json), V3_COUNTS.extralaboral) + answeredCount(parseRecord(evaluation.stress_answers_json), V3_COUNTS.stress);
                     const expected = applicableItems.length + V3_COUNTS.extralaboral + V3_COUNTS.stress;
                     const progress = Math.round((answered / expected) * 100);
+                    const result = readScoringResult(evaluation.results_json);
                     return (
                       <tr key={evaluation.id}>
                         <td><span className="cell-stack"><strong>{evaluation.participant_code}</strong><small>{socio.fullName || "Datos generales pendientes"}</small></span></td>
                         <td><span className="form-badge">{evaluation.instrument_form}</span></td>
                         <td><span className="cell-stack numeric"><strong>{progress}%</strong><span className="progress-track"><span style={{ width: `${progress}%` }} /></span><small>{answered} de {expected} respuestas</small></span></td>
                         <td><StatusPill value={evaluation.status} /></td>
+                        <td>{result ? <RiskPill level={result.general.risk?.key} label={`${result.general.score?.toFixed(1) ?? "—"} · ${result.general.risk?.label ?? "No calculable"}`} /> : evaluation.status === "completed" ? "Por calificar" : "—"}</td>
                         <td>{formatDateTime(evaluation.completed_at || evaluation.updated_at)}</td>
-                        <td><Link className="table-link" href={`/aplicaciones/${id}/registro-manual/${evaluation.id}?paso=${evaluation.status === "completed" ? "revision" : "datos"}`}>{evaluation.status === "completed" ? "Ver control" : "Continuar"}</Link></td>
+                        <td><Link className="table-link" href={`/aplicaciones/${id}/registro-manual/${evaluation.id}?paso=${evaluation.status === "completed" ? "revision" : "datos"}`}>{evaluation.status === "completed" ? "Ver resultado" : "Continuar"}</Link></td>
                       </tr>
                     );
                   })}

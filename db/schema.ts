@@ -23,6 +23,10 @@ export const appUsers = sqliteTable(
       enum: ["super_admin", "psychologist", "company_admin", "viewer"],
     }).notNull(),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
+    passwordHash: text("password_hash"),
+    passwordVersion: integer("password_version").notNull().default(0),
+    failedLoginCount: integer("failed_login_count").notNull().default(0),
+    lockedUntil: text("locked_until"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     lastLoginAt: text("last_login_at"),
   },
@@ -142,6 +146,9 @@ export const manualEvaluations = sqliteTable(
     consentVerified: integer("consent_verified", { mode: "boolean" })
       .notNull()
       .default(false),
+    resultsJson: text("results_json").notNull().default("{}"),
+    scoringVersion: text("scoring_version"),
+    scoredAt: text("scored_at"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     completedAt: text("completed_at"),

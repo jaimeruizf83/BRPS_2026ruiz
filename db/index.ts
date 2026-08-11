@@ -52,6 +52,10 @@ const schemaStatements = [
     email TEXT NOT NULL COLLATE NOCASE,
     role TEXT NOT NULL CHECK(role IN ('super_admin','psychologist','company_admin','viewer')),
     active INTEGER NOT NULL DEFAULT 1,
+    password_hash TEXT,
+    password_version INTEGER NOT NULL DEFAULT 0,
+    failed_login_count INTEGER NOT NULL DEFAULT 0,
+    locked_until TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_login_at TEXT
   )`,
@@ -119,6 +123,9 @@ const schemaStatements = [
     serves_customers INTEGER,
     supervises_people INTEGER NOT NULL DEFAULT 0,
     consent_verified INTEGER NOT NULL DEFAULT 0,
+    results_json TEXT NOT NULL DEFAULT '{}',
+    scoring_version TEXT,
+    scored_at TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TEXT
@@ -198,7 +205,28 @@ export async function ensureSchema() {
     const db = getD1();
     schemaReady = db
       .batch(schemaStatements.map((statement) => db.prepare(statement)))
-      .then(() => undefined)
+      .then(async () => {
+        const requiredColumns = [
+          ["app_users", "password_hash", "TEXT"],
+          ["app_users", "password_version", "INTEGER NOT NULL DEFAULT 0"],
+          ["app_users", "failed_login_count", "INTEGER NOT NULL DEFAULT 0"],
+          ["app_users", "locked_until", "TEXT"],
+          ["manual_evaluations", "results_json", "TEXT NOT NULL DEFAULT '{}'"],
+          ["manual_evaluations", "scoring_version", "TEXT"],
+          ["manual_evaluations", "scored_at", "TEXT"],
+        ] as const;
+        const tableColumns = new Map<string, Set<string>>();
+        for (const [table] of requiredColumns) {
+          if (tableColumns.has(table)) continue;
+          const info = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
+          tableColumns.set(table, new Set(info.results.map((column) => column.name)));
+        }
+        for (const [table, column, definition] of requiredColumns) {
+          if (!tableColumns.get(table)?.has(column)) {
+            await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
+          }
+        }
+      })
       .catch((error) => {
         schemaReady = null;
         throw error;

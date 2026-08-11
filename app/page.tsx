@@ -137,11 +137,11 @@ export default async function Home() {
       </section>
 
       <section className="demo-warning">
-        <strong>Captura V3 disponible; interpretación controlada</strong>
+        <strong>Captura y motor de calificación V3 habilitados</strong>
         <p>
           El registro manual utiliza la estructura y las escalas V3 sin reproducir
-          los enunciados oficiales. La calificación ocupacional se habilitará solo
-          con el motor oficial auditado y bajo responsabilidad profesional.
+          los enunciados oficiales. Calcula dimensiones, dominios, totales y estrés
+          con trazabilidad; la interpretación permanece bajo responsabilidad profesional.
         </p>
       </section>
 

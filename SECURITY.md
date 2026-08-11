@@ -6,7 +6,8 @@ Reporta vulnerabilidades mediante un GitHub Security Advisory privado. No publiq
 
 | Riesgo | Control |
 |---|---|
-| Suplantación | Identidad delegada y rol validado en servidor |
+| Suplantación | Identidad delegada, rol validado y contraseña complementaria con hash PBKDF2 |
+| Fuerza bruta de contraseña | Cinco intentos, bloqueo de 15 minutos, sesión HttpOnly firmada y revocación por versión |
 | Robo de enlace | Token aleatorio, hash, uso único y política de referencia |
 | CSRF | HMAC con sujeto, propósito, vencimiento y mismo origen |
 | Inyección | Consultas preparadas y validación de entradas |

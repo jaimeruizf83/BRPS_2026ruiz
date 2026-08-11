@@ -2,16 +2,16 @@
 
 Aplicación web segura y responsive para gestionar aplicaciones de la Batería de Riesgo Psicosocial, capturar manualmente la estructura V3, asignar la Forma A o B según el nivel ocupacional y mantener controles de confidencialidad y trazabilidad.
 
-## Importante: captura V3 e interpretación controlada
+## Importante: motor V3 e interpretación profesional
 
-La captura manual usa la numeración, escalas, filtros y cantidades del Aplicativo V3 sin reproducir los enunciados oficiales. El flujo digital anterior conserva un **banco sintético** y sus resultados no son válidos para diagnóstico ni decisiones ocupacionales. La calificación V3 se habilitará solo con un motor oficial auditado por un profesional autorizado.
+La captura manual usa la numeración, escalas, filtros, claves, factores y baremos del Aplicativo V3 sin reproducir los enunciados oficiales. Al finalizar ejecuta el motor V3 para dimensiones, dominios, totales intralaboral/extralaboral, total general y estrés. La clasificación apoya al profesional autorizado y no equivale a un diagnóstico clínico. El flujo digital y la calificación directa del OCR conservan la etiqueta **demo** hasta integrar y validar una plantilla completa de los cuatro instrumentos.
 
 No se incluyen el Excel histórico, contraseñas, nombres de trabajadores ni respuestas reales.
 
 ## Incluye
 
 - Inicio responsive y panel de control.
-- Identidad administradora de ChatGPT; la app no almacena contraseñas.
+- Identidad de ChatGPT más contraseña complementaria opcional, almacenada únicamente como hash salado PBKDF2.
 - Roles: superadministración, profesional SST/psicología, administración de empresa y consulta.
 - Organizaciones, equipo, aplicaciones y estados operativos.
 - Configuración V3: empresa, nombre de evaluación, código interno, fecha de corte y responsable técnico.
@@ -22,7 +22,7 @@ No se incluyen el Excel histórico, contraseñas, nombres de trabajadores ni res
 - Códigos seudónimos y enlaces aleatorios de un solo uso, guardados solo como hash.
 - Asignación automática A/B por nivel del cargo.
 - Consentimiento versionado y prevención de duplicados.
-- Cálculo por dimensión, dominio y total.
+- Motor V3 versionado con reglas de inversión, filtros, datos faltantes, transformación, baremos y cálculo de estrés ponderado.
 - Resultados individuales restringidos.
 - Reportes A/B separados, con supresión bajo el mínimo grupal.
 - CSV protegido contra fórmulas, auditoría, impresión/PDF y diseño móvil.
@@ -76,7 +76,8 @@ Para cambiar el esquema, edita `db/schema.ts` y ejecuta `npm run db:generate`.
 3. Abre **Registro manual V3**, asigna un código y selecciona el nivel ocupacional; la app fija A o B.
 4. Registra la ficha general y transcribe las respuestas intralaborales, extralaborales y de estrés.
 5. Revisa filtros, faltantes y consentimiento antes de finalizar y bloquear la captura.
-6. También puedes activar la aplicación y entregar invitaciones digitales por un canal privado.
+6. El motor calcula y conserva los resultados V3; los registros antiguos finalizados se pueden recalcular desde su detalle.
+7. También puedes activar la aplicación y entregar invitaciones digitales por un canal privado; ese banco permanece identificado como demostrativo.
 
 ### Flujo por lotes
 
