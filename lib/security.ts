@@ -123,6 +123,16 @@ export async function verifyPasswordSession(
   token: string,
   expected: { userId: string; email: string; passwordVersion: number },
 ) {
+  const claims = await readPasswordSession(token);
+  return Boolean(
+    claims &&
+    claims.userId === expected.userId &&
+    claims.email === expected.email.toLowerCase() &&
+    claims.passwordVersion === expected.passwordVersion,
+  );
+}
+
+export async function readPasswordSession(token: string) {
   try {
     const [payload, signature] = token.split(".");
     if (!payload || !signature) return false;
@@ -139,12 +149,19 @@ export async function verifyPasswordSession(
       passwordVersion?: number;
       expires?: number;
     };
-    return claims.userId === expected.userId &&
-      claims.email === expected.email.toLowerCase() &&
-      claims.passwordVersion === expected.passwordVersion &&
-      Number(claims.expires) >= Date.now();
+    if (
+      typeof claims.userId !== "string" ||
+      typeof claims.email !== "string" ||
+      !Number.isInteger(claims.passwordVersion) ||
+      Number(claims.expires) < Date.now()
+    ) return null;
+    return {
+      userId: claims.userId,
+      email: claims.email.toLowerCase(),
+      passwordVersion: Number(claims.passwordVersion),
+    };
   } catch {
-    return false;
+    return null;
   }
 }
 

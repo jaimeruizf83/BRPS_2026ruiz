@@ -38,14 +38,14 @@ export function AppShell({
             <strong>{user.displayName}</strong>
             <small>{ROLE_LABELS[user.role]}</small>
           </div>
-          <Link
+          <a
             className="signout"
             href="/api/auth/signout"
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
           >
             ↗
-          </Link>
+          </a>
         </div>
       </aside>
       <div className="app-content">

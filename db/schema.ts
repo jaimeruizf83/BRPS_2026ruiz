@@ -18,6 +18,7 @@ export const appUsers = sqliteTable(
       onDelete: "set null",
     }),
     name: text("name").notNull(),
+    username: text("username"),
     email: text("email").notNull(),
     role: text("role", {
       enum: ["super_admin", "psychologist", "company_admin", "viewer"],
@@ -31,6 +32,7 @@ export const appUsers = sqliteTable(
     lastLoginAt: text("last_login_at"),
   },
   (table) => [
+    uniqueIndex("app_users_username_uq").on(table.username),
     uniqueIndex("app_users_email_uq").on(table.email),
     index("app_users_org_idx").on(table.organizationId),
   ],

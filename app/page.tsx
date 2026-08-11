@@ -1,13 +1,9 @@
 import { redirect } from "next/navigation";
 import { Brand } from "@/components/Brand";
 import { Notice } from "@/components/Ui";
-import { getAuthorizedUser, getPasswordLoginUser } from "@/lib/auth";
+import { getAuthorizedUser } from "@/lib/auth";
 import { issueCsrf } from "@/lib/security";
-import {
-  chatGPTSignInPath,
-  getChatGPTUser,
-  safeRelativeReturnPath,
-} from "./chatgpt-auth";
+import { safeRelativeReturnPath } from "./chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -24,20 +20,9 @@ export default async function Home({
   const query = await searchParams;
   const requestedPath = safeRelativeReturnPath(query.return_to || "/dashboard");
   const returnTo = requestedPath === "/" ? "/dashboard" : requestedPath;
-  const identity = await getChatGPTUser();
-
-  if (identity) {
-    const authorizedUser = await getAuthorizedUser();
-    if (authorizedUser) redirect(returnTo);
-  }
-
-  const passwordUser = identity ? await getPasswordLoginUser() : null;
-  if (identity && !passwordUser) redirect("/acceso-denegado");
-
-  const csrf = passwordUser?.passwordHash
-    ? await issueCsrf(passwordUser.email, "password:login", 15)
-    : null;
-  const signInReturnTo = `/?return_to=${encodeURIComponent(returnTo)}`;
+  const authorizedUser = await getAuthorizedUser();
+  if (authorizedUser) redirect(returnTo);
+  const csrf = await issueCsrf("login", "password:login", 15);
 
   return (
     <main className="login-page">
@@ -97,94 +82,71 @@ export default async function Home({
         <div className="login-panel-inner">
           <div className="login-mobile-brand"><Brand /></div>
 
-          <div className="login-stepper" aria-label="Progreso del ingreso">
-            <div className="is-active">
-              <span>1</span>
-              <small>Identidad</small>
-            </div>
-            <i aria-hidden="true" />
-            <div className={passwordUser ? "is-active" : ""}>
-              <span>2</span>
-              <small>Contraseña</small>
-            </div>
-          </div>
+          <div className="login-card">
+            <div className="login-lock" aria-hidden="true"><span /></div>
+            <p className="eyebrow">Acceso seguro</p>
+            <h2 id="login-title">Ingresa al sistema</h2>
+            <p className="login-intro">
+              Escribe el usuario y la contraseña asignados por la administración
+              para abrir tu panel de trabajo.
+            </p>
 
-          {!passwordUser ? (
-            <div className="login-card">
-              <div className="login-lock" aria-hidden="true"><span /></div>
-              <p className="eyebrow">Acceso seguro</p>
-              <h2 id="login-title">Ingresa al aplicativo</h2>
-              <p className="login-intro">
-                Primero verificaremos tu identidad. Solo los correos registrados
-                por la administración pueden continuar.
-              </p>
+            {query.error && <Notice tone="danger">{query.error}</Notice>}
 
-              <a
-                className="button button-primary login-submit"
-                href={chatGPTSignInPath(signInReturnTo)}
-              >
-                Verificar identidad e ingresar
+            <form className="login-form" action="/api/auth/password" method="post">
+              <input type="hidden" name="csrf" value={csrf} />
+              <input type="hidden" name="returnTo" value={returnTo} />
+
+              <div className="field">
+                <label htmlFor="access-username">Usuario</label>
+                <div className="login-input-field">
+                  <span aria-hidden="true">@</span>
+                  <input
+                    id="access-username"
+                    name="username"
+                    type="text"
+                    required
+                    maxLength={200}
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    autoFocus
+                    placeholder="Ingresa tu usuario"
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="access-password">Contraseña</label>
+                <div className="login-input-field">
+                  <span aria-hidden="true">••</span>
+                  <input
+                    id="access-password"
+                    name="password"
+                    type="password"
+                    required
+                    maxLength={128}
+                    autoComplete="current-password"
+                    placeholder="Ingresa tu contraseña"
+                  />
+                </div>
+              </div>
+
+              <button className="button button-primary login-submit" type="submit">
+                Ingresar al sistema
                 <span aria-hidden="true">→</span>
-              </a>
+              </button>
+            </form>
 
-              <div className="login-help">
-                <strong>¿Aún no tienes acceso?</strong>
-                <p>Solicita al superadministrador que registre tu correo y te asigne un rol.</p>
-              </div>
+            <div className="login-help">
+              <strong>¿No tienes usuario?</strong>
+              <p>Solicita al superadministrador la creación de tu cuenta y contraseña.</p>
             </div>
-          ) : (
-            <div className="login-card">
-              <div className="verified-account">
-                <span aria-hidden="true">
-                  {passwordUser.displayName.slice(0, 1).toUpperCase()}
-                </span>
-                <div>
-                  <small>Identidad verificada</small>
-                  <strong>{passwordUser.displayName}</strong>
-                  <p>{passwordUser.email}</p>
-                </div>
-                <a href="/api/auth/signout">Cambiar</a>
-              </div>
 
-              <p className="eyebrow">Segundo paso</p>
-              <h2 id="login-title">Escribe tu contraseña</h2>
-              <p className="login-intro">
-                Usa la clave del aplicativo asignada por la administración para
-                abrir tu panel de trabajo.
-              </p>
-
-              {query.error && <Notice tone="danger">{query.error}</Notice>}
-
-              <form className="login-form" action="/api/auth/password" method="post">
-                <input type="hidden" name="csrf" value={csrf || ""} />
-                <input type="hidden" name="returnTo" value={returnTo} />
-                <div className="field">
-                  <label htmlFor="access-password">Contraseña de acceso</label>
-                  <div className="login-password-field">
-                    <span aria-hidden="true">••</span>
-                    <input
-                      id="access-password"
-                      name="password"
-                      type="password"
-                      required
-                      maxLength={128}
-                      autoComplete="current-password"
-                      autoFocus
-                      placeholder="Ingresa tu contraseña"
-                    />
-                  </div>
-                </div>
-                <button className="button button-primary login-submit" type="submit">
-                  Ingresar al panel
-                  <span aria-hidden="true">→</span>
-                </button>
-              </form>
-
-              <p className="login-attempt-note">
-                Después de cinco intentos fallidos, el acceso se bloquea durante 15 minutos.
-              </p>
-            </div>
-          )}
+            <p className="login-attempt-note">
+              Después de cinco intentos fallidos, el acceso se bloquea durante 15 minutos.
+            </p>
+          </div>
 
           <div className="login-security-note">
             <span aria-hidden="true">✓</span>

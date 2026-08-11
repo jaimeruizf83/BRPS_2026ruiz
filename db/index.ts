@@ -49,6 +49,7 @@ const schemaStatements = [
     id TEXT PRIMARY KEY,
     organization_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
+    username TEXT COLLATE NOCASE,
     email TEXT NOT NULL COLLATE NOCASE,
     role TEXT NOT NULL CHECK(role IN ('super_admin','psychologist','company_admin','viewer')),
     active INTEGER NOT NULL DEFAULT 1,
@@ -207,6 +208,7 @@ export async function ensureSchema() {
       .batch(schemaStatements.map((statement) => db.prepare(statement)))
       .then(async () => {
         const requiredColumns = [
+          ["app_users", "username", "TEXT"],
           ["app_users", "password_hash", "TEXT"],
           ["app_users", "password_version", "INTEGER NOT NULL DEFAULT 0"],
           ["app_users", "failed_login_count", "INTEGER NOT NULL DEFAULT 0"],
@@ -226,6 +228,12 @@ export async function ensureSchema() {
             await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`).run();
           }
         }
+        await db
+          .prepare("UPDATE app_users SET username=lower(email) WHERE username IS NULL OR trim(username)=''")
+          .run();
+        await db
+          .prepare("CREATE UNIQUE INDEX IF NOT EXISTS app_users_username_uq ON app_users(username COLLATE NOCASE)")
+          .run();
       })
       .catch((error) => {
         schemaReady = null;

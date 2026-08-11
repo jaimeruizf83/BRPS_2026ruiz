@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 type TeamUser = {
   id: string;
   name: string;
+  username: string | null;
   email: string;
   role: AppRole;
   active: number;
@@ -49,11 +50,11 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       <PageHeader
         eyebrow="Gobierno de acceso"
         title="Equipo"
-        description="Cada persona entra con su identidad verificada y, cuando está configurada, con una contraseña adicional del aplicativo."
+        description="Crea las credenciales y define el alcance de cada persona que ingresa al aplicativo."
       />
       {query.ok && <Notice tone="success">Usuario autorizado y contraseña configurada. Cualquier sesión anterior de esa clave quedó invalidada.</Notice>}
       {query.error && <Notice tone="danger">{query.error}</Notice>}
-      <Notice>La contraseña es complementaria: el usuario debe ingresar primero con el mismo correo de ChatGPT que registres aquí.</Notice>
+      <Notice>Cada persona ingresa directamente con el usuario y la contraseña definidos en esta sección.</Notice>
 
       <div className="content-grid">
         <section className="card">
@@ -61,10 +62,11 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
           {users.length ? (
             <div className="table-wrap">
               <table className="team-table">
-                <thead><tr><th>Persona</th><th>Rol</th><th>Organización</th><th>Contraseña</th><th>Último acceso</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Persona</th><th>Usuario</th><th>Rol</th><th>Organización</th><th>Contraseña</th><th>Último acceso</th><th>Estado</th></tr></thead>
                 <tbody>{users.map((item) => (
                   <tr key={item.id}>
                     <td><span className="cell-stack"><strong>{item.name}</strong><small>{item.email}</small></span></td>
+                    <td><strong>{item.username || item.email}</strong></td>
                     <td>{ROLE_LABELS[item.role]}</td>
                     <td>{item.organization_name || "Todas"}</td>
                     <td><span className={`status ${item.password_hash ? "status-completed" : "status-review"}`}>{item.password_hash ? "Configurada" : "Sin configurar"}</span></td>
@@ -79,13 +81,14 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
         <aside>
           <section className="card" id="nuevo">
-            <div className="card-header"><div><h2>Crear o restablecer usuario</h2><p>Correo, alcance y clave de acceso</p></div></div>
+            <div className="card-header"><div><h2>Crear o restablecer usuario</h2><p>Usuario, correo, alcance y contraseña</p></div></div>
             <div className="card-body">
               {user.role !== "super_admin" ? <Notice>Solo la superadministración puede asignar accesos o restablecer contraseñas.</Notice> : (
                 <form className="form-grid" action="/api/admin/users" method="post">
                   <input type="hidden" name="csrf" value={csrf} />
                   <div className="field field-full"><label htmlFor="user-name">Nombre *</label><input id="user-name" name="name" required maxLength={100} autoComplete="name" /></div>
-                  <div className="field field-full"><label htmlFor="email">Correo de ChatGPT *</label><input id="email" name="email" type="email" required maxLength={200} autoComplete="email" /><small>Si el correo ya existe, se actualizan su rol, alcance y contraseña.</small></div>
+                  <div className="field field-full"><label htmlFor="username">Usuario *</label><input id="username" name="username" required minLength={3} maxLength={50} pattern="[A-Za-z0-9._-]+" autoComplete="username" autoCapitalize="none" spellCheck={false} /><small>Entre 3 y 50 caracteres: letras, números, punto, guion o guion bajo.</small></div>
+                  <div className="field field-full"><label htmlFor="email">Correo *</label><input id="email" name="email" type="email" required maxLength={200} autoComplete="email" /><small>Si el correo ya existe, se actualizan su usuario, rol, alcance y contraseña.</small></div>
                   <div className="field field-full"><label htmlFor="role">Rol *</label><select id="role" name="role" required><option value="psychologist">Profesional SST / psicología</option><option value="company_admin">Administración de empresa</option><option value="viewer">Solo lectura</option><option value="super_admin">Superadministración</option></select></div>
                   <div className="field field-full"><label htmlFor="team-organization">Organización</label><select id="team-organization" name="organizationId"><option value="">Acceso global</option>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select><small>Obligatoria para administración de empresa y solo lectura.</small></div>
                   <div className="field field-full"><label htmlFor="user-password">Nueva contraseña *</label><input id="user-password" name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /><small>Mínimo 12 caracteres y al menos tres grupos: mayúsculas, minúsculas, números o símbolos.</small></div>
