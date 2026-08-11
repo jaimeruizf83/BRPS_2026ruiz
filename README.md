@@ -37,7 +37,7 @@ No se incluyen el Excel histórico, contraseñas, nombres de trabajadores ni res
 | Interfaz y servidor | React App Router sobre Vinext |
 | Ejecución | Cloudflare Worker / OpenAI Sites |
 | Persistencia | Cloudflare D1 (metadatos) + R2 privado (PDF temporales) |
-| Identidad | Sign in with ChatGPT administrado por Sites |
+| Identidad | Usuario y contraseña local con sesión firmada |
 | Migraciones | Drizzle Kit |
 | Calidad | ESLint + Node Test Runner + GitHub Actions |
 
@@ -50,6 +50,10 @@ Node.js 22.13 o superior y un proyecto Sites con binding D1 `DB`.
 ```dotenv
 BRPS_ADMIN_EMAILS=administrador@ejemplo.com
 BRPS_APP_SECRET=secreto-aleatorio-de-32-o-mas-caracteres
+BRPS_TEMP_ADMIN_EMAIL=
+BRPS_TEMP_ADMIN_USERNAME=
+BRPS_TEMP_ADMIN_PASSWORD_HASH=
+BRPS_TEMP_ADMIN_VERSION=
 MIN_GROUP_SIZE=5
 OPENAI_API_KEY=secreto-del-proyecto
 OPENAI_BATCH_MODEL=gpt-4.1
@@ -57,6 +61,7 @@ OPENAI_BATCH_MODEL=gpt-4.1
 
 - `BRPS_ADMIN_EMAILS`: lista separada por comas de superadministradores iniciales.
 - `BRPS_APP_SECRET`: secreto HMAC; debe configurarse como secreto del entorno.
+- `BRPS_TEMP_ADMIN_*`: activación versionada de una clave administrativa temporal. El entorno conserva únicamente el hash; la clave queda inutilizada después del cambio obligatorio.
 - `MIN_GROUP_SIZE`: mínimo para mostrar agregados; el código nunca permite menos de 3.
 - `OPENAI_API_KEY`: secreto usado en servidor para pretabular PDF; nunca se expone al navegador.
 - `OPENAI_BATCH_MODEL`: modelo con visión y entrada PDF; el valor predeterminado es `gpt-4.1`.

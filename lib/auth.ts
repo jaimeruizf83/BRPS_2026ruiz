@@ -16,6 +16,7 @@ export type AuthorizedUser = {
   fullName: string | null;
   role: AppRole;
   organizationId: string | null;
+  mustChangePassword: boolean;
 };
 
 type SessionUserRow = {
@@ -28,6 +29,7 @@ type SessionUserRow = {
   active: number;
   password_hash: string | null;
   password_version: number;
+  must_change_password: number;
 };
 
 function authorized(row: SessionUserRow): AuthorizedUser {
@@ -39,10 +41,13 @@ function authorized(row: SessionUserRow): AuthorizedUser {
     fullName: row.name,
     role: row.role,
     organizationId: row.organization_id,
+    mustChangePassword: Boolean(row.must_change_password),
   };
 }
 
-export async function getAuthorizedUser() {
+export async function getAuthorizedUser(
+  options: { allowPasswordChangeRequired?: boolean } = {},
+) {
   const requestHeaders = await headers();
   const token = cookieValue(
     requestHeaders.get("cookie"),
@@ -52,7 +57,8 @@ export async function getAuthorizedUser() {
   if (!claims) return null;
 
   const row = await one<SessionUserRow>(
-    `SELECT id,username,name,email,organization_id,role,active,password_hash,password_version
+    `SELECT id,username,name,email,organization_id,role,active,password_hash,password_version,
+            must_change_password
      FROM app_users WHERE id=?`,
     claims.userId,
   );
@@ -63,12 +69,15 @@ export async function getAuthorizedUser() {
     row.email.toLowerCase() !== claims.email ||
     row.password_version !== claims.passwordVersion
   ) return null;
-  return authorized(row);
+  const user = authorized(row);
+  if (user.mustChangePassword && !options.allowPasswordChangeRequired) return null;
+  return user;
 }
 
 export async function requireAuthorizedUser(returnTo: string) {
-  const user = await getAuthorizedUser();
+  const user = await getAuthorizedUser({ allowPasswordChangeRequired: true });
   if (!user) redirect(`/?return_to=${encodeURIComponent(returnTo)}`);
+  if (user.mustChangePassword) redirect("/cambiar-clave");
   return user;
 }
 

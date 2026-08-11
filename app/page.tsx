@@ -20,7 +20,10 @@ export default async function Home({
   const query = await searchParams;
   const requestedPath = safeRelativeReturnPath(query.return_to || "/dashboard");
   const returnTo = requestedPath === "/" ? "/dashboard" : requestedPath;
-  const authorizedUser = await getAuthorizedUser();
+  const authorizedUser = await getAuthorizedUser({
+    allowPasswordChangeRequired: true,
+  });
+  if (authorizedUser?.mustChangePassword) redirect("/cambiar-clave");
   if (authorizedUser) redirect(returnTo);
   const csrf = await issueCsrf("login", "password:login", 15);
 

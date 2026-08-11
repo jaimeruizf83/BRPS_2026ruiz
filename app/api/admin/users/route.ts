@@ -42,8 +42,9 @@ export async function POST(request: Request) {
 
     await run(
       `INSERT INTO app_users
-        (id,organization_id,name,username,email,role,active,password_hash,password_version,failed_login_count,locked_until)
-       VALUES (?,?,?,?,?,?,1,?,1,0,NULL)
+        (id,organization_id,name,username,email,role,active,password_hash,password_version,
+         must_change_password,temporary_password_version,failed_login_count,locked_until)
+       VALUES (?,?,?,?,?,?,1,?,1,1,NULL,0,NULL)
        ON CONFLICT(email) DO UPDATE SET
         organization_id=excluded.organization_id,
         name=excluded.name,
@@ -52,6 +53,8 @@ export async function POST(request: Request) {
         active=1,
         password_hash=excluded.password_hash,
         password_version=app_users.password_version+1,
+        must_change_password=1,
+        temporary_password_version=NULL,
         failed_login_count=0,
         locked_until=NULL`,
       crypto.randomUUID(),
@@ -67,6 +70,7 @@ export async function POST(request: Request) {
       role,
       organizationId: organizationId || null,
       passwordConfigured: true,
+      passwordChangeRequired: true,
     });
     return redirectTo(request, "/equipo", { ok: "1" });
   } catch (error) {

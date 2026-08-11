@@ -26,6 +26,10 @@ export const appUsers = sqliteTable(
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     passwordHash: text("password_hash"),
     passwordVersion: integer("password_version").notNull().default(0),
+    mustChangePassword: integer("must_change_password", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    temporaryPasswordVersion: text("temporary_password_version"),
     failedLoginCount: integer("failed_login_count").notNull().default(0),
     lockedUntil: text("locked_until"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),

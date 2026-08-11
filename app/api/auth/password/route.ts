@@ -20,9 +20,33 @@ type LoginUser = {
   active: number;
   password_hash: string | null;
   password_version: number;
+  must_change_password: number;
+  temporary_password_version: string | null;
   failed_login_count: number;
   locked_until: string | null;
 };
+
+type TemporaryAdminConfig = {
+  email: string;
+  username: string;
+  passwordHash: string;
+  version: string;
+};
+
+function temporaryAdminConfig(): TemporaryAdminConfig | null {
+  const bindings = getBindings();
+  const email = bindings.BRPS_TEMP_ADMIN_EMAIL?.trim().toLowerCase() || "";
+  const username = bindings.BRPS_TEMP_ADMIN_USERNAME?.trim().toLowerCase() || "";
+  const passwordHash = bindings.BRPS_TEMP_ADMIN_PASSWORD_HASH?.trim() || "";
+  const version = bindings.BRPS_TEMP_ADMIN_VERSION?.trim() || "";
+  if (
+    !email ||
+    !username ||
+    !passwordHash.startsWith("pbkdf2-sha256:") ||
+    !version
+  ) return null;
+  return { email, username, passwordHash, version };
+}
 
 function bootstrapEmails() {
   return new Set(
@@ -36,7 +60,8 @@ function bootstrapEmails() {
 async function findUser(identifier: string) {
   return one<LoginUser>(
     `SELECT id,username,name,email,organization_id,role,active,password_hash,
-            password_version,failed_login_count,locked_until
+            password_version,must_change_password,temporary_password_version,
+            failed_login_count,locked_until
      FROM app_users
      WHERE lower(username)=? OR lower(email)=?
      LIMIT 1`,
@@ -45,11 +70,60 @@ async function findUser(identifier: string) {
   );
 }
 
+async function activateTemporaryAdmin(
+  identifier: string,
+  password: string,
+  current: LoginUser | null,
+) {
+  const config = temporaryAdminConfig();
+  if (!config || ![config.username, config.email].includes(identifier)) return current;
+
+  const target = await findUser(config.email);
+  if (current && current.email.toLowerCase() !== config.email) return current;
+  if (target?.temporary_password_version === config.version) return target;
+  if (!(await verifyPassword(password, config.passwordHash))) return current;
+
+  if (target) {
+    await run(
+      `UPDATE app_users
+       SET username=?,role='super_admin',active=1,password_hash=?,
+           password_version=password_version+1,must_change_password=1,
+           temporary_password_version=?,failed_login_count=0,locked_until=NULL
+       WHERE id=?`,
+      config.username,
+      config.passwordHash,
+      config.version,
+      target.id,
+    );
+  } else {
+    await run(
+      `INSERT INTO app_users
+        (id,username,name,email,role,active,password_hash,password_version,
+         must_change_password,temporary_password_version,failed_login_count)
+       VALUES (?,?,'Administrador BRPS',?,'super_admin',1,?,1,1,?,0)`,
+      crypto.randomUUID(),
+      config.username,
+      config.email,
+      config.passwordHash,
+      config.version,
+    );
+  }
+  const activated = await findUser(config.email);
+  if (activated) {
+    await audit(activated.email, "user.temporary_password_activated", "user", activated.id, {
+      username: config.username,
+      version: config.version,
+    });
+  }
+  return activated;
+}
+
 async function initializeBootstrapUser(
   identifier: string,
   password: string,
   current: LoginUser | null,
 ) {
+  if (temporaryAdminConfig()) return current;
   const identity = await getChatGPTUser();
   const email = identity?.email.trim().toLowerCase() || "";
   const isBootstrap = Boolean(
@@ -106,9 +180,11 @@ export async function POST(request: Request) {
 
   let user = await findUser(identifier);
   try {
+    user = await activateTemporaryAdmin(identifier, password, user);
     user = await initializeBootstrapUser(identifier, password, user);
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "No fue posible configurar el acceso inicial");
+    console.error("No fue posible activar el acceso administrativo", error);
+    return fail("No fue posible configurar el acceso temporal");
   }
   if (!user || !user.active || !user.password_hash) {
     return fail("Usuario o contraseña incorrectos");
@@ -156,8 +232,12 @@ export async function POST(request: Request) {
   );
   await audit(user.email, "user.password_authenticated", "user", user.id, {
     username: user.username || user.email,
+    passwordChangeRequired: Boolean(user.must_change_password),
   });
-  const response = redirectTo(request, returnTo);
+  const response = redirectTo(
+    request,
+    user.must_change_password ? "/cambiar-clave" : returnTo,
+  );
   response.headers.append("Set-Cookie", passwordSessionCookie(token));
   response.headers.set("Cache-Control", "no-store");
   return response;

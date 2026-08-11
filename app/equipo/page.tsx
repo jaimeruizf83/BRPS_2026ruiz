@@ -16,6 +16,7 @@ type TeamUser = {
   role: AppRole;
   active: number;
   password_hash: string | null;
+  must_change_password: number;
   organization_name: string | null;
   created_at: string;
   last_login_at: string | null;
@@ -52,9 +53,9 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         title="Equipo"
         description="Crea las credenciales y define el alcance de cada persona que ingresa al aplicativo."
       />
-      {query.ok && <Notice tone="success">Usuario autorizado y contraseña configurada. Cualquier sesión anterior de esa clave quedó invalidada.</Notice>}
+      {query.ok && <Notice tone="success">Usuario autorizado y clave temporal configurada. Deberá crear una contraseña personal en su siguiente ingreso.</Notice>}
       {query.error && <Notice tone="danger">{query.error}</Notice>}
-      <Notice>Cada persona ingresa directamente con el usuario y la contraseña definidos en esta sección.</Notice>
+      <Notice>Cada persona ingresa con el usuario y la clave temporal definidos aquí. El sistema exige reemplazarla inmediatamente por una contraseña personal.</Notice>
 
       <div className="content-grid">
         <section className="card">
@@ -69,7 +70,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
                     <td><strong>{item.username || item.email}</strong></td>
                     <td>{ROLE_LABELS[item.role]}</td>
                     <td>{item.organization_name || "Todas"}</td>
-                    <td><span className={`status ${item.password_hash ? "status-completed" : "status-review"}`}>{item.password_hash ? "Configurada" : "Sin configurar"}</span></td>
+                    <td><span className={`status ${item.password_hash && !item.must_change_password ? "status-completed" : "status-review"}`}>{item.must_change_password ? "Cambio pendiente" : item.password_hash ? "Configurada" : "Sin configurar"}</span></td>
                     <td>{formatDate(item.last_login_at || item.created_at)}</td>
                     <td><span className={`status ${item.active ? "status-active" : "status-closed"}`}>{item.active ? "Activo" : "Inactivo"}</span></td>
                   </tr>
@@ -81,7 +82,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
         <aside>
           <section className="card" id="nuevo">
-            <div className="card-header"><div><h2>Crear o restablecer usuario</h2><p>Usuario, correo, alcance y contraseña</p></div></div>
+            <div className="card-header"><div><h2>Crear o restablecer usuario</h2><p>Usuario, correo, alcance y clave temporal</p></div></div>
             <div className="card-body">
               {user.role !== "super_admin" ? <Notice>Solo la superadministración puede asignar accesos o restablecer contraseñas.</Notice> : (
                 <form className="form-grid" action="/api/admin/users" method="post">
@@ -91,9 +92,9 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
                   <div className="field field-full"><label htmlFor="email">Correo *</label><input id="email" name="email" type="email" required maxLength={200} autoComplete="email" /><small>Si el correo ya existe, se actualizan su usuario, rol, alcance y contraseña.</small></div>
                   <div className="field field-full"><label htmlFor="role">Rol *</label><select id="role" name="role" required><option value="psychologist">Profesional SST / psicología</option><option value="company_admin">Administración de empresa</option><option value="viewer">Solo lectura</option><option value="super_admin">Superadministración</option></select></div>
                   <div className="field field-full"><label htmlFor="team-organization">Organización</label><select id="team-organization" name="organizationId"><option value="">Acceso global</option>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select><small>Obligatoria para administración de empresa y solo lectura.</small></div>
-                  <div className="field field-full"><label htmlFor="user-password">Nueva contraseña *</label><input id="user-password" name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /><small>Mínimo 12 caracteres y al menos tres grupos: mayúsculas, minúsculas, números o símbolos.</small></div>
+                  <div className="field field-full"><label htmlFor="user-password">Clave temporal *</label><input id="user-password" name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /><small>Mínimo 12 caracteres y al menos tres grupos. El usuario deberá cambiarla al ingresar.</small></div>
                   <div className="field field-full"><label htmlFor="user-password-confirmation">Confirmar contraseña *</label><input id="user-password-confirmation" name="passwordConfirmation" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></div>
-                  <div className="form-actions"><button className="button button-primary button-block" type="submit">Guardar usuario y clave</button></div>
+                  <div className="form-actions"><button className="button button-primary button-block" type="submit">Guardar usuario y clave temporal</button></div>
                 </form>
               )}
             </div>

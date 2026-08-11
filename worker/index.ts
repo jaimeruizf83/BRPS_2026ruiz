@@ -8,6 +8,10 @@ interface Env {
   BUCKET: R2Bucket;
   BRPS_ADMIN_EMAILS?: string;
   BRPS_APP_SECRET?: string;
+  BRPS_TEMP_ADMIN_EMAIL?: string;
+  BRPS_TEMP_ADMIN_PASSWORD_HASH?: string;
+  BRPS_TEMP_ADMIN_USERNAME?: string;
+  BRPS_TEMP_ADMIN_VERSION?: string;
   MIN_GROUP_SIZE?: string;
   OPENAI_API_KEY?: string;
   OPENAI_BATCH_MODEL?: string;
