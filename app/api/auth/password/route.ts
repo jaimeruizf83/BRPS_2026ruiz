@@ -13,7 +13,7 @@ import {
 export async function POST(request: Request) {
   const form = await request.formData();
   const returnTo = safeRelativeReturnPath(String(form.get("returnTo") || "/dashboard"));
-  const fail = (message: string) => redirectTo(request, "/acceso-clave", { return_to: returnTo, error: message });
+  const fail = (message: string) => redirectTo(request, "/", { return_to: returnTo, error: message });
   if (!isSameOrigin(request)) return new Response("Origen no permitido", { status: 403 });
   const user = await getPasswordLoginUser();
   if (!user || !user.passwordHash) return fail("No fue posible verificar el acceso");
@@ -46,4 +46,3 @@ export async function POST(request: Request) {
   response.headers.set("Cache-Control", "no-store");
   return response;
 }
-

@@ -123,7 +123,7 @@ export async function requireAuthorizedUser(returnTo: string) {
   const user = await resolveUser(identity);
   if (!user) redirect("/acceso-denegado");
   if (!(await hasPasswordAccess(user))) {
-    redirect(`/acceso-clave?return_to=${encodeURIComponent(returnTo)}`);
+    redirect(`/?return_to=${encodeURIComponent(returnTo)}`);
   }
   await run("UPDATE app_users SET last_login_at=CURRENT_TIMESTAMP WHERE id=?", user.id);
   return authorized(user);
